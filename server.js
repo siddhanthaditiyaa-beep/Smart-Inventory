@@ -33,15 +33,6 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 /* =========================
-   MONGODB
-========================= */
-mongoose
-  .connect(process.env.MONGODB_URI)
-  .then(() => console.log("✅ MongoDB Atlas connected"))
-  .catch(err => console.error("❌ MongoDB connection error", err));
-
-
-/* =========================
    SCHEMAS
 ========================= */
 const UserSchema = new mongoose.Schema({
@@ -93,7 +84,7 @@ const Log = mongoose.model("Log", LogSchema);
 const ShelfScan = mongoose.model("ShelfScan", ShelfScanSchema);
 
 /* =========================
-   INIT
+   INIT (DATA SEED)
 ========================= */
 async function init() {
   if (!(await User.findOne({ role: "admin" }))) {
@@ -119,7 +110,20 @@ async function init() {
     ]);
   }
 }
-init();
+
+/* =========================
+   MONGODB (FIXED)
+========================= */
+mongoose
+  .connect(process.env.MONGODB_URI)
+  .then(async () => {
+    console.log("✅ MongoDB Atlas connected");
+    await init(); // ✅ init AFTER connection
+  })
+  .catch(err => {
+    console.error("❌ MongoDB connection error", err);
+    process.exit(1);
+  });
 
 /* =========================
    AUTH
@@ -261,7 +265,7 @@ app.get("/admin-data", auth("admin"), async (req, res) => {
 });
 
 /* =========================
-   🔁 RESET LOGS & STOCKS (FIXED)
+   RESET LOGS & STOCKS
 ========================= */
 app.post("/admin/reset-logs", auth("admin"), async (req, res) => {
   try {
@@ -289,8 +293,10 @@ app.post("/admin/reset-logs", auth("admin"), async (req, res) => {
 });
 
 /* =========================
-   SERVER
+   SERVER (RENDER SAFE)
 ========================= */
-app.listen(3000, () => {
-  console.log("🚀 Server running at http://localhost:3000");
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
 });
