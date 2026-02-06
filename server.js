@@ -112,20 +112,6 @@ async function init() {
 }
 
 /* =========================
-   MONGODB (FIXED)
-========================= */
-mongoose
-  .connect(process.env.MONGODB_URI)
-  .then(async () => {
-    console.log("✅ MongoDB Atlas connected");
-    await init(); // ✅ init AFTER connection
-  })
-  .catch(err => {
-    console.error("❌ MongoDB connection error", err);
-    process.exit(1);
-  });
-
-/* =========================
    AUTH
 ========================= */
 function auth(role) {
@@ -293,10 +279,22 @@ app.post("/admin/reset-logs", auth("admin"), async (req, res) => {
 });
 
 /* =========================
-   SERVER (RENDER SAFE)
+   MONGODB + SERVER START
+   (PRODUCTION-GRADE STEP 1)
 ========================= */
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-});
+mongoose
+  .connect(process.env.MONGODB_URI)
+  .then(async () => {
+    console.log("✅ MongoDB Atlas connected");
+    await init(); // init AFTER DB is ready
+
+    app.listen(PORT, () => {
+      console.log(`🚀 Server running on port ${PORT}`);
+    });
+  })
+  .catch(err => {
+    console.error("❌ MongoDB connection error", err);
+    process.exit(1);
+  });
