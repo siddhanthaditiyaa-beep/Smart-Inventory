@@ -60,6 +60,12 @@
     <ul id="monitoringLogs"></ul>
   </div>
 
+  <!-- 🧾 ORDERS & BILLS -->
+  <div class="card">
+    <h2>🧾 Orders & Bills</h2>
+    <div id="orders"></div>
+  </div>
+
 </div>
 
 <script>
@@ -163,6 +169,7 @@ function pauseRefresh() {
 function resumeRefresh() {
   isEditing = false;
   loadAdmin();
+  loadOrders();
 }
 
 /* ================= LOGS ================= */
@@ -293,6 +300,46 @@ async function logout() {
   window.location.href = "login.html";
 }
 
+/* ================= ORDERS ================= */
+async function loadOrders() {
+  if (isEditing) return;
+
+  const res = await fetch("/admin/orders", {
+    headers: { Authorization: token }
+  });
+
+  const orders = await res.json();
+  const container = document.getElementById("orders");
+  container.innerHTML = "";
+
+  if (orders.length === 0) {
+    container.innerHTML = "<p>No orders yet</p>";
+    return;
+  }
+
+  orders.forEach(o => {
+    let html = `
+      <div style="border:1px solid #ddd; padding:12px; margin-bottom:12px;">
+        <strong>${o.customer?.email || "Unknown"}</strong><br>
+        <small>${o.time}</small><br><br>
+        <ul>
+    `;
+
+    o.items?.forEach(i => {
+      html += `<li>${i.name} × ${i.qty} = ₹${i.subtotal}</li>`;
+    });
+
+    html += `
+        </ul>
+        <strong>Total: ₹${o.totalAmount}</strong>
+      </div>
+    `;
+
+    container.innerHTML += html;
+  });
+}
+
+/* ================= INIT ================= */
 function initChart() {
   const ctx = document.getElementById("stockChart").getContext("2d");
 
@@ -325,7 +372,9 @@ function initChart() {
 
 initChart();
 loadAdmin();
+loadOrders();
 setInterval(loadAdmin, 3000);
+setInterval(loadOrders, 4000);
 </script>
 
 <!-- 🔔 Toast Notification -->
