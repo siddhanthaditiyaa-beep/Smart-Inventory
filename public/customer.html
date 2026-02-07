@@ -8,6 +8,8 @@
 
 <body>
 
+  <button class="dark-toggle" onclick="toggleDarkMode()">🌙</button>
+
 <div class="container">
   <h1>🛒 Shop</h1>
 
@@ -191,6 +193,24 @@ setInterval(loadOrders, 5000);
   <span id="cartInfo">🧺 0 items | ₹0</span>
   <button onclick="checkout()">Checkout</button>
 </div>
+
+<script>
+function toggleDarkMode() {
+  document.body.classList.toggle("dark");
+
+  if (document.body.classList.contains("dark")) {
+    localStorage.setItem("darkMode", "on");
+  } else {
+    localStorage.setItem("darkMode", "off");
+  }
+}
+
+window.onload = () => {
+  if (localStorage.getItem("darkMode") === "on") {
+    document.body.classList.add("dark");
+  }
+};
+</script>
 
 </body>
 </html>

@@ -8,6 +8,9 @@
 
 <body class="login-body">
 
+  <button class="dark-toggle" onclick="toggleDarkMode()">🌙</button>
+
+
 <div class="login-wrapper">
 
   <h1 class="login-title">User Login</h1>
@@ -107,6 +110,24 @@ document.addEventListener("keydown", function (e) {
     login();
   }
 });
+</script>
+
+<script>
+function toggleDarkMode() {
+  document.body.classList.toggle("dark");
+
+  if (document.body.classList.contains("dark")) {
+    localStorage.setItem("darkMode", "on");
+  } else {
+    localStorage.setItem("darkMode", "off");
+  }
+}
+
+window.onload = () => {
+  if (localStorage.getItem("darkMode") === "on") {
+    document.body.classList.add("dark");
+  }
+};
 </script>
 
 </body>
