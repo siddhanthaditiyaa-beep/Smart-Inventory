@@ -157,20 +157,7 @@ button:disabled {
   font-size: 12px;
 }
 
-.password-box {
-  position: relative;
-}
-
-.password-box .eye {
-  position: absolute;
-  right: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  cursor: pointer;
-  font-size: 18px;
-}
-
-/* ===== LOADER (STEP 3) ===== */
+/* ===== LOADER ===== */
 .loader {
   display: none;
   margin: 12px auto;
@@ -188,17 +175,10 @@ button:disabled {
   }
 }
 
-/* DISABLED BUTTON STATE */
-.login-btn:disabled {
-  background: Burlington#aaa;
-  cursor: not-allowed;
-}
-
 /* ================= ADMIN UI ================= */
 
 .admin-body {
   background: #eef4ff;
-  font-family: Arial, sans-serif;
 }
 
 .admin-header {
@@ -224,30 +204,10 @@ button:disabled {
   box-shadow: 0 10px 25px rgba(0,0,0,0.1);
 }
 
-.card h2 {
-  margin-bottom: 15px;
-}
-
-.card input {
-  width: 100%;
-  padding: 10px;
-  margin-bottom: 10px;
-}
-
-.card button {
-  background: #3ec6c6;
-  border: none;
-  color: white;
-  padding: 10px;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
 .logout-btn {
   background: red;
   color: white;
   padding: 10px 16px;
-  border: none;
   border-radius: 6px;
   cursor: pointer;
 }
@@ -265,32 +225,99 @@ th, td {
 .delete-btn {
   background: #e74c3c;
   color: white;
-  border: none;
   padding: 6px 10px;
   border-radius: 4px;
 }
 
-ul {
-  list-style: none;
-  padding: 0;
+/* =================================================
+   📱 MOBILE RESPONSIVENESS (NEW – SAFE ADDITION)
+================================================= */
+
+@media (max-width: 768px) {
+
+  /* Global */
+  body {
+    font-size: 14px;
+  }
+
+  /* Login */
+  .login-card {
+    width: 90%;
+    padding: 25px;
+  }
+
+  /* Containers */
+  .container {
+    margin: 20px 10px;
+    padding: 20px;
+  }
+
+  /* Grid -> single column */
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Buttons */
+  button,
+  .login-btn,
+  .logout-btn {
+    width: 100%;
+    padding: 14px;
+    font-size: 16px;
+  }
+
+  /* Admin */
+  .admin-header {
+    flex-direction: column;
+    gap: 15px;
+    padding: 20px;
+    text-align: center;
+  }
+
+  .admin-container {
+    grid-template-columns: 1fr;
+    padding: 15px;
+  }
+
+  /* Tables */
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  th, td {
+    font-size: 13px;
+  }
+
+  /* Inputs */
+  input {
+    font-size: 16px;
+    padding: 14px;
+  }
+
+  /* Cards */
+  .card {
+    padding: 18px;
+  }
+
+  /* Chart */
+  canvas {
+    max-width: 100% !important;
+  }
 }
 
-ul li {
-  padding: 10px;
-  border-bottom: 1px solid #ddd;
-}
+/* Small phones */
+@media (max-width: 420px) {
+  h1 {
+    font-size: 22px;
+  }
 
-.danger-btn {
-  background: #e74c3c;
-  color: white;
-  border: none;
-  padding: 10px 16px;
-  border-radius: 6px;
-  cursor: pointer;
-  margin-bottom: 15px;
-  font-weight: bold;
-}
+  h2 {
+    font-size: 18px;
+  }
 
-.danger-btn:hover {
-  background: #c0392b;
+  .badge {
+    font-size: 11px;
+  }
 }
