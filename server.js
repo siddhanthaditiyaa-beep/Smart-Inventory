@@ -46,7 +46,8 @@ const UserSchema = new mongoose.Schema({
 const ItemSchema = new mongoose.Schema({
   key: String,
   name: String,
-  stock: Number
+  stock: Number,
+  price: { type: Number, default: 0 } // ✅ NEW
 });
 
 const OrderSchema = new mongoose.Schema({
@@ -99,14 +100,14 @@ async function init() {
 
   if ((await Item.countDocuments()) === 0) {
     await Item.insertMany([
-      { key: "chocolates", name: "Chocolates", stock: 5 },
-      { key: "biscuits", name: "Biscuits", stock: 8 },
-      { key: "chips", name: "Chips", stock: 6 },
-      { key: "juice", name: "Juice", stock: 7 },
-      { key: "soft-drinks", name: "Soft Drinks", stock: 9 },
-      { key: "canned-food", name: "Canned Food", stock: 4 },
-      { key: "rice", name: "Rice", stock: 7 },
-      { key: "salt", name: "Salt", stock: 10 }
+      { key: "chocolates", name: "Chocolates", stock: 5, price: 20 },
+      { key: "biscuits", name: "Biscuits", stock: 8, price: 10 },
+      { key: "chips", name: "Chips", stock: 6, price: 15 },
+      { key: "juice", name: "Juice", stock: 7, price: 25 },
+      { key: "soft-drinks", name: "Soft Drinks", stock: 9, price: 30 },
+      { key: "canned-food", name: "Canned Food", stock: 4, price: 40 },
+      { key: "rice", name: "Rice", stock: 7, price: 50 },
+      { key: "salt", name: "Salt", stock: 10, price: 5 }
     ]);
   }
 }
@@ -195,6 +196,7 @@ app.get("/shop-items", auth("customer"), async (req, res) => {
     view[i.key] = {
       name: i.name,
       stock: i.stock,
+      price: i.price, // ✅ INCLUDED (used later)
       canBuy: i.stock > 0,
       warning: i.stock <= 3 ? i.stock : null
     };
@@ -229,12 +231,20 @@ app.post("/checkout", auth("customer"), async (req, res) => {
    ADMIN
 ========================= */
 app.post("/admin/add-item", auth("admin"), async (req, res) => {
-  const { name, stock } = req.body;
+  const { name, stock, price } = req.body;
   const key = name.toLowerCase().replace(/\s+/g, "-");
+
   if (await Item.findOne({ key })) {
     return res.status(400).json({ message: "Item exists" });
   }
-  await Item.create({ key, name, stock });
+
+  await Item.create({
+    key,
+    name,
+    stock,
+    price: price || 0
+  });
+
   res.json({ message: "Item added" });
 });
 
@@ -280,7 +290,6 @@ app.post("/admin/reset-logs", auth("admin"), async (req, res) => {
 
 /* =========================
    MONGODB + SERVER START
-   (PRODUCTION-GRADE STEP 1)
 ========================= */
 const PORT = process.env.PORT || 3000;
 
@@ -288,7 +297,7 @@ mongoose
   .connect(process.env.MONGODB_URI)
   .then(async () => {
     console.log("✅ MongoDB Atlas connected");
-    await init(); // init AFTER DB is ready
+    await init();
 
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);

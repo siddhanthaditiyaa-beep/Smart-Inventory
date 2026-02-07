@@ -20,6 +20,7 @@
     <h2>➕ Add Item</h2>
     <input id="itemName" placeholder="Item name">
     <input id="itemStock" type="number" placeholder="Initial stock">
+    <input id="itemPrice" type="number" placeholder="Price (₹)" step="0.01">
     <button onclick="addItem()">Add Item</button>
   </div>
 
@@ -31,6 +32,7 @@
         <tr>
           <th>Item</th>
           <th>Stock</th>
+          <th>Price</th>
           <th>Action</th>
         </tr>
       </thead>
@@ -38,7 +40,7 @@
     </table>
   </div>
 
-  <!-- STOCK GRAPH (BIGGER) -->
+  <!-- STOCK GRAPH -->
   <div class="card">
     <h2>📈 Stock Graph</h2>
     <canvas id="stockChart" height="220"></canvas>
@@ -94,6 +96,7 @@ function renderInventory(items) {
       <tr>
         <td>${item.name}</td>
         <td>${item.stock}</td>
+        <td>₹${item.price ?? 0}</td>
         <td>
           <button class="delete-btn" onclick="deleteItem('${item.key}')">✖</button>
         </td>
@@ -124,7 +127,6 @@ function renderLogs(logs, id) {
 
 let pulseInterval = null;
 let pulseState = true;
-
 const shownZeroStock = new Set();
 
 function showToast(message) {
@@ -137,7 +139,7 @@ function showToast(message) {
   }, 3000);
 }
 
-/* ================= GRAPH (IMPROVED) ================= */
+/* ================= GRAPH ================= */
 function renderChart(items) {
   chart.data.labels = items.map(i => i.name);
   chart.data.datasets[0].data = items.map(i => i.stock);
@@ -150,7 +152,6 @@ function renderChart(items) {
 
   chart.update("none");
 
-  // 🔔 Toast notification for zero stock
   items.forEach(item => {
     if (item.stock === 0 && !shownZeroStock.has(item.name)) {
       showToast(`🚨 ${item.name} is OUT OF STOCK!`);
@@ -158,7 +159,6 @@ function renderChart(items) {
     }
   });
 
-  // Handle pulsing animation
   const hasZeroStock = items.some(i => i.stock === 0);
 
   if (hasZeroStock && !pulseInterval) {
@@ -171,17 +171,19 @@ function renderChart(items) {
   if (!hasZeroStock && pulseInterval) {
     clearInterval(pulseInterval);
     pulseInterval = null;
-    shownZeroStock.clear(); // reset alerts when stock recovers
+    shownZeroStock.clear();
   }
 }
-
 
 /* ================= ADD ITEM ================= */
 async function addItem() {
   const name = itemName.value.trim();
   const stock = Number(itemStock.value);
+  const price = Number(itemPrice.value);
 
-  if (!name || stock < 0) return alert("Invalid input");
+  if (!name || stock < 0 || price < 0) {
+    return alert("Invalid input");
+  }
 
   await fetch("/admin/add-item", {
     method: "POST",
@@ -189,11 +191,12 @@ async function addItem() {
       "Content-Type": "application/json",
       Authorization: token
     },
-    body: JSON.stringify({ name, stock })
+    body: JSON.stringify({ name, stock, price })
   });
 
   itemName.value = "";
   itemStock.value = "";
+  itemPrice.value = "";
   loadAdmin();
 }
 
@@ -268,7 +271,7 @@ loadAdmin();
 setInterval(loadAdmin, 3000);
 </script>
 
-<!-- 🔔 Toast Notification -->
+<!-- 🔔 Toast -->
 <div id="toast" style="
   position: fixed;
   bottom: 20px;
@@ -281,8 +284,7 @@ setInterval(loadAdmin, 3000);
   box-shadow: 0 4px 10px rgba(0,0,0,0.2);
   display: none;
   z-index: 9999;
-">
-</div>
+"></div>
 
 </body>
 </html>
