@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Razorpay | Secure Payment</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .rp-box {
+      max-width: 420px;
+      margin: 60px auto;
+      padding: 24px;
+      border-radius: 12px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+      background: white;
+      text-align: center;
+    }
+
+    .rp-logo {
+      font-size: 26px;
+      font-weight: bold;
+      color: #0a5fff;
+      margin-bottom: 6px;
+    }
+
+    .rp-sub {
+      color: #666;
+      margin-bottom: 20px;
+    }
+
+    .pay-btn {
+      width: 100%;
+      padding: 12px;
+      margin: 8px 0;
+      border-radius: 6px;
+      border: none;
+      font-size: 16px;
+      cursor: pointer;
+      background: #0a5fff;
+      color: white;
+    }
+
+    .pay-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+
+    .method {
+      background: #f5f7ff;
+      color: #0a5fff;
+      border: 1px solid #dbe3ff;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="rp-box">
+  <div class="rp-logo">Razorpay</div>
+  <div class="rp-sub">Secure Payment Gateway</div>
+
+  <hr>
+
+  <h3>Amount to Pay</h3>
+  <h1>₹ <span id="amount">0</span></h1>
+
+  <hr>
+
+  <button class="pay-btn method" onclick="pay('UPI')">Pay via UPI</button>
+  <button class="pay-btn method" onclick="pay('Card')">Pay via Card</button>
+  <button class="pay-btn method" onclick="pay('Wallet')">Pay via Wallet</button>
+
+  <p id="msg" style="margin-top:16px;"></p>
+</div>
+
+<script>
+/* =========================
+   SESSION & SAFETY CHECK
+========================= */
+const token = localStorage.getItem("token");
+const role = localStorage.getItem("role");
+const amount = localStorage.getItem("payAmount");
+const cart = JSON.parse(localStorage.getItem("pendingCart")) || {};
+
+if (!token || role !== "customer" || !amount || Object.keys(cart).length === 0) {
+  window.location.href = "customer.html";
+}
+
+document.getElementById("amount").innerText = amount;
+
+/* =========================
+   DUMMY PAYMENT
+========================= */
+let processing = false;
+
+function pay(method) {
+  if (processing) return;
+  processing = true;
+
+  const msg = document.getElementById("msg");
+  const buttons = document.querySelectorAll(".pay-btn");
+
+  buttons.forEach(b => b.disabled = true);
+
+  msg.innerText = `Processing ${method} payment...`;
+  msg.style.color = "#333";
+
+  setTimeout(async () => {
+    msg.innerText = "Payment successful ✅";
+    msg.style.color = "green";
+
+    const res = await fetch("/checkout", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: token
+      },
+      body: JSON.stringify({ cart })
+    });
+
+    if (res.ok) {
+      localStorage.removeItem("pendingCart");
+      localStorage.removeItem("payAmount");
+
+      setTimeout(() => {
+        window.location.href = "customer.html";
+      }, 1200);
+    } else {
+      msg.innerText = "Payment failed. Please try again.";
+      msg.style.color = "red";
+      buttons.forEach(b => b.disabled = false);
+      processing = false;
+    }
+  }, 1800);
+}
+</script>
+
+</body>
+</html>
