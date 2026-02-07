@@ -228,15 +228,13 @@ th, td {
   padding: 6px 10px;
   border-radius: 4px;
 }
+
 /* =================================================
-   📱 MOBILE RESPONSIVENESS (CLEAN + FINAL)
+   📱 MOBILE RESPONSIVENESS (SAFE + CLEAN)
 ================================================= */
 @media (max-width: 768px) {
 
-  /* ===== GLOBAL ===== */
   body {
-    margin: 0;
-    padding: 0;
     font-size: 14px;
   }
 
@@ -244,14 +242,12 @@ th, td {
     text-align: center;
   }
 
-  /* ===== CONTAINERS ===== */
   .container {
     margin: 0;
     padding: 16px;
     border-radius: 0;
   }
 
-  /* ===== LOGIN ===== */
   .login-card {
     width: 100%;
     padding: 24px;
@@ -259,7 +255,6 @@ th, td {
     box-shadow: none;
   }
 
-  /* ===== GRID / ITEMS ===== */
   .grid {
     grid-template-columns: 1fr;
   }
@@ -268,30 +263,25 @@ th, td {
     padding: 18px;
   }
 
-  /* ===== BUTTONS ===== */
   button,
   .login-btn,
   .logout-btn {
     width: 100%;
-    font-size: 16px;
     padding: 14px;
+    font-size: 16px;
   }
 
-  /* ===== INPUTS ===== */
   input {
     font-size: 16px;
     padding: 14px;
   }
 
-  /* ===== CART ===== */
   #cart li {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 8px;
   }
 
-  /* ===== ADMIN HEADER ===== */
   .admin-header {
     flex-direction: column;
     gap: 12px;
@@ -299,7 +289,6 @@ th, td {
     padding: 20px;
   }
 
-  /* ===== ADMIN LAYOUT ===== */
   .admin-container {
     grid-template-columns: 1fr;
     padding: 12px;
@@ -309,7 +298,6 @@ th, td {
     padding: 16px;
   }
 
-  /* ===== TABLES ===== */
   table {
     display: block;
     overflow-x: auto;
@@ -326,155 +314,12 @@ th, td {
     font-size: 14px;
   }
 
-  /* ===== CHARTS ===== */
   canvas {
     max-width: 100% !important;
     height: auto !important;
   }
 
-  /* ===== PAYMENT PAGE ===== */
-  .container[style*="max-width"] {
-    max-width: 100% !important;
-  }
-
-  /* ===== ORDERS ===== */
   #orders > div {
     font-size: 14px;
   }
-}
-
-/* =========================
-   📱 MOBILE CART BAR
-========================= */
-#mobileCartBar {
-  display: none;
-}
-
-@media (max-width: 768px) {
-  #mobileCartBar {
-    display: flex;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: #ffffff;
-    border-top: 1px solid #ddd;
-    padding: 12px 16px;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: 0 -4px 10px rgba(0,0,0,0.1);
-    z-index: 9999;
-  }
-
-  #mobileCartBar button {
-    width: auto;
-    padding: 10px 16px;
-  }
-}
-
-/* =========================
-   📱 MOBILE ORDER CARDS
-========================= */
-@media (max-width: 768px) {
-  #orders > div {
-    border-radius: 12px;
-    padding: 14px;
-    background: #fafafa;
-  }
-
-  #orders ul {
-    padding-left: 0;
-  }
-
-  #orders li {
-    list-style: none;
-    padding: 6px 0;
-    font-size: 14px;
-  }
-
-  #orders button {
-    margin-top: 10px;
-  }
-}
-
-/* =========================
-   🌙 DARK MODE
-========================= */
-@media (prefers-color-scheme: dark) {
-  body {
-    background: #121212;
-    color: #eaeaea;
-  }
-
-  .container,
-  .card,
-  .login-card {
-    background: #1e1e1e;
-    box-shadow: none;
-  }
-
-  input {
-    background: #2a2a2a;
-    color: #fff;
-    border: 1px solid #444;
-  }
-
-  table th,
-  table td {
-    border-color: #333;
-  }
-
-  button {
-    background: #3ec6c6;
-  }
-
-  #mobileCartBar {
-    background: #1e1e1e;
-    border-top: 1px solid #333;
-  }
-}
-
-/* =========================
-   🌙 DARK MODE
-========================= */
-body.dark {
-  background: #0f172a;
-  color: #e5e7eb;
-}
-
-body.dark .container,
-body.dark .card,
-body.dark .login-card {
-  background: #020617;
-  color: #e5e7eb;
-}
-
-body.dark input {
-  background: #020617;
-  color: #e5e7eb;
-  border: 1px solid #334155;
-}
-
-body.dark button {
-  background: #22c55e;
-}
-
-body.dark table th,
-body.dark table td {
-  border-color: #334155;
-}
-
-/* 🌙 Toggle Button */
-.dark-toggle {
-  position: fixed;
-  top: 16px;
-  right: 16px;
-  background: #111;
-  color: white;
-  border: none;
-  padding: 10px 14px;
-  border-radius: 999px;
-  font-size: 18px;
-  cursor: pointer;
-  z-index: 9999;
 }
