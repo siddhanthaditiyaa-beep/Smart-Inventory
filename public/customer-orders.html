@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>My Orders | Smart Inventory</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<div class="container">
+  <h1>🧾 My Orders</h1>
+
+  <button onclick="goBack()" class="login-btn" style="width:160px">
+    ⬅ Back to Shop
+  </button>
+
+  <div id="orders" style="margin-top:25px;"></div>
+</div>
+
+<script>
+const token = localStorage.getItem("token");
+const role = localStorage.getItem("role");
+
+if (!token || role !== "customer") {
+  window.location.href = "login.html";
+}
+
+/* ================= LOAD ORDERS ================= */
+async function loadOrders() {
+  const res = await fetch("/customer/orders", {
+    headers: { Authorization: token }
+  });
+
+  const orders = await res.json();
+  const container = document.getElementById("orders");
+  container.innerHTML = "";
+
+  if (!orders.length) {
+    container.innerHTML = "<p>No orders yet.</p>";
+    return;
+  }
+
+  orders.forEach(o => {
+    let html = `
+      <div style="
+        border:1px solid #ddd;
+        padding:16px;
+        margin-bottom:18px;
+        border-radius:10px;
+        background:#fff;
+      ">
+        <strong>Order Date:</strong> ${o.time}<br>
+        <strong>Status:</strong>
+        <span style="
+          background:green;
+          color:white;
+          padding:4px 8px;
+          border-radius:6px;
+          font-size:13px;
+        ">
+          ${o.paymentStatus}
+        </span>
+
+        <hr>
+
+        <ul>
+    `;
+
+    o.items.forEach(i => {
+      html += `<li>${i.name} × ${i.qty} = ₹${i.subtotal}</li>`;
+    });
+
+    html += `
+        </ul>
+
+        <hr>
+        <strong>Total Paid: ₹${o.totalAmount}</strong><br><br>
+
+        <a href="/admin/invoice/${o._id}" target="_blank">
+          <button>⬇ Download Invoice</button>
+        </a>
+      </div>
+    `;
+
+    container.innerHTML += html;
+  });
+}
+
+/* ================= NAV ================= */
+function goBack() {
+  window.location.href = "customer.html";
+}
+
+loadOrders();
+</script>
+
+</body>
+</html>

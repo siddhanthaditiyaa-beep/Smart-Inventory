@@ -46,6 +46,14 @@
     <canvas id="stockChart" height="220"></canvas>
   </div>
 
+  <!-- REVENUE ANALYTICS -->
+  <div class="card">
+    <h2>💰 Revenue Analytics</h2>
+    <p><strong>Total Revenue:</strong> ₹<span id="totalRevenue">0</span></p>
+    <p><strong>Total Orders:</strong> <span id="totalOrders">0</span></p>
+    <canvas id="revenueChart" height="220"></canvas>
+  </div>
+
   <button class="danger-btn" onclick="resetLogs()">🧹 Reset Logs & Stocks</button>
 
   <!-- FORECASTING LOGS -->
@@ -60,7 +68,7 @@
     <ul id="monitoringLogs"></ul>
   </div>
 
-  <!-- 🧾 ORDERS & BILLS -->
+  <!-- ORDERS -->
   <div class="card">
     <h2>🧾 Orders & Bills</h2>
     <div id="orders"></div>
@@ -72,199 +80,95 @@
 const token = localStorage.getItem("token");
 const role = localStorage.getItem("role");
 
-if (!token || role !== "admin") {
-  window.location.href = "login.html";
-}
+if (!token || role !== "admin") location.href = "login.html";
 
-let chart;
+let chart, revenueChart;
 let isEditing = false;
 
-/* ================= LOAD ADMIN DATA ================= */
+/* LOAD ADMIN */
 async function loadAdmin() {
   if (isEditing) return;
-
-  const res = await fetch("/admin-data", {
-    headers: { Authorization: token }
-  });
-
+  const res = await fetch("/admin-data", { headers: { Authorization: token }});
   const data = await res.json();
-
   renderInventory(data.inventory);
   renderLogs(data.forecasting, "forecastingLogs");
   renderLogs(data.monitoring, "monitoringLogs");
   renderChart(data.inventory);
 }
 
-/* ================= INVENTORY ================= */
+/* INVENTORY */
 function renderInventory(items) {
-  const table = document.getElementById("inventoryTable");
-  table.innerHTML = "";
-
-  items.forEach(item => {
-    table.innerHTML += `
+  inventoryTable.innerHTML = "";
+  items.forEach(i => {
+    inventoryTable.innerHTML += `
       <tr>
-        <td>${item.name}</td>
-
-        <td>
-          <input
-            type="number"
-            value="${item.stock}"
-            min="0"
-            style="width:70px"
-            onfocus="pauseRefresh()"
-            onblur="saveStock('${item.key}', this.value)"
-          >
-        </td>
-
-        <td>
-          <input
-            type="number"
-            value="${item.price ?? 0}"
-            min="0"
-            style="width:70px"
-            onfocus="pauseRefresh()"
-            onblur="savePrice('${item.key}', this.value)"
-          >
-        </td>
-
-        <td>
-          <button class="delete-btn" onclick="deleteItem('${item.key}')">✖</button>
-        </td>
-      </tr>
-    `;
+        <td>${i.name}</td>
+        <td><input type="number" value="${i.stock}" min="0"
+          onfocus="pauseRefresh()"
+          onblur="saveStock('${i.key}', this.value)"></td>
+        <td><input type="number" value="${i.price ?? 0}" min="0"
+          onfocus="pauseRefresh()"
+          onblur="savePrice('${i.key}', this.value)"></td>
+        <td><button class="delete-btn" onclick="deleteItem('${i.key}')">✖</button></td>
+      </tr>`;
   });
 }
 
-/* ================= SAVE STOCK ================= */
 async function saveStock(key, stock) {
   await fetch("/admin/update-stock", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: token
-    },
+    headers: { "Content-Type": "application/json", Authorization: token },
     body: JSON.stringify({ key, stock: Number(stock) })
   });
   resumeRefresh();
 }
 
-/* ================= SAVE PRICE ================= */
 async function savePrice(key, price) {
   await fetch("/admin/update-price", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: token
-    },
+    headers: { "Content-Type": "application/json", Authorization: token },
     body: JSON.stringify({ key, price: Number(price) })
   });
   resumeRefresh();
 }
 
-/* ================= PAUSE / RESUME REFRESH ================= */
-function pauseRefresh() {
-  isEditing = true;
-}
-
-function resumeRefresh() {
+function pauseRefresh(){ isEditing = true; }
+function resumeRefresh(){
   isEditing = false;
-  loadAdmin();
-  loadOrders();
+  loadAdmin(); loadOrders(); loadAnalytics();
 }
 
-/* ================= LOGS ================= */
+/* LOGS */
 function renderLogs(logs, id) {
-  const ul = document.getElementById(id);
-  ul.innerHTML = "";
-
-  if (logs.length === 0) {
-    ul.innerHTML = "<li>No logs yet</li>";
-    return;
-  }
-
-  logs.forEach(l => {
-    ul.innerHTML += `
-      <li>
-        <strong>${l.item}</strong> → ${l.stock}
-        <br><small>${l.time}</small>
-      </li>
-    `;
-  });
+  document.getElementById(id).innerHTML =
+    logs.length
+      ? logs.map(l => `<li><b>${l.item}</b> → ${l.stock}<br><small>${l.time}</small></li>`).join("")
+      : "<li>No logs yet</li>";
 }
 
-let pulseInterval = null;
-let pulseState = true;
-const shownZeroStock = new Set();
-
-function showToast(message) {
-  const toast = document.getElementById("toast");
-  toast.innerText = message;
-  toast.style.display = "block";
-  setTimeout(() => toast.style.display = "none", 3000);
-}
-
-/* ================= GRAPH ================= */
+/* STOCK CHART */
 function renderChart(items) {
   chart.data.labels = items.map(i => i.name);
   chart.data.datasets[0].data = items.map(i => i.stock);
-
-  chart.data.datasets[0].backgroundColor = items.map(i => {
-    if (i.stock === 0) return pulseState ? "#ff0000" : "#ffb3b3";
-    if (i.stock < 3) return "#ff4d4d";
-    return "#3ec6c6";
-  });
-
-  chart.update("none");
-
-  items.forEach(item => {
-    if (item.stock === 0 && !shownZeroStock.has(item.name)) {
-      showToast(`🚨 ${item.name} is OUT OF STOCK!`);
-      shownZeroStock.add(item.name);
-    }
-  });
-
-  const hasZeroStock = items.some(i => i.stock === 0);
-
-  if (hasZeroStock && !pulseInterval) {
-    pulseInterval = setInterval(() => {
-      pulseState = !pulseState;
-      renderChart(items);
-    }, 600);
-  }
-
-  if (!hasZeroStock && pulseInterval) {
-    clearInterval(pulseInterval);
-    pulseInterval = null;
-    shownZeroStock.clear();
-  }
+  chart.update();
 }
 
-/* ================= ADD ITEM ================= */
+/* ADD ITEM */
 async function addItem() {
-  const name = itemName.value.trim();
-  const stock = Number(itemStock.value);
-  const price = Number(itemPrice.value);
-
-  if (!name || stock < 0 || price < 0) {
-    return alert("Invalid input");
-  }
-
   await fetch("/admin/add-item", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: token
-    },
-    body: JSON.stringify({ name, stock, price })
+    headers: { "Content-Type": "application/json", Authorization: token },
+    body: JSON.stringify({
+      name: itemName.value.trim(),
+      stock: Number(itemStock.value),
+      price: Number(itemPrice.value)
+    })
   });
-
-  itemName.value = "";
-  itemStock.value = "";
-  itemPrice.value = "";
+  itemName.value = itemStock.value = itemPrice.value = "";
   loadAdmin();
 }
 
-/* ================= DELETE ITEM ================= */
+/* DELETE ITEM */
 async function deleteItem(key) {
   await fetch(`/admin/delete-item/${key}`, {
     method: "DELETE",
@@ -273,124 +177,120 @@ async function deleteItem(key) {
   loadAdmin();
 }
 
-/* ================= RESET ================= */
-async function resetLogs() {
-  if (!confirm("Clear all logs and reset stocks?")) return;
+/* ORDERS */
+async function loadOrders() {
+  if (isEditing) return;
+  const res = await fetch("/admin/orders", { headers: { Authorization: token }});
+  const orders = await res.json();
+  ordersDiv.innerHTML = orders.length ? "" : "<p>No orders yet</p>";
 
-  await fetch("/admin/reset-logs", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: token
-    }
+  orders.forEach(o => {
+    ordersDiv.innerHTML += `
+      <div style="border:1px solid #ddd;padding:12px;margin-bottom:12px;">
+        <b>${o.customer.fname} ${o.customer.lname}</b><br>
+        <small>${o.customer.email}</small><br>
+        <small>${o.time}</small><br><br>
+        <ul>${o.items.map(i => `<li>${i.name} × ${i.qty} = ₹${i.subtotal}</li>`).join("")}</ul>
+        <b>Total: ₹${o.totalAmount}</b><br>
+        <b>Status:</b>
+        <span style="padding:4px 8px;border-radius:6px;color:white;
+          background:${o.paymentStatus==="PAID"?"green":o.paymentStatus==="FAILED"?"red":"orange"}">
+          ${o.paymentStatus}
+        </span><br><br>
+
+        <a href="/admin/invoice/${o._id}" target="_blank">
+          <button>⬇ Invoice</button>
+        </a>
+
+        ${o.paymentStatus === "PAID" ? `
+          <button onclick="refund('${o._id}')"
+            style="background:#ff9800;margin-left:6px;">
+            🔄 Refund
+          </button>` : ""}
+      </div>`;
   });
-
-  loadAdmin();
 }
 
-/* ================= LOGOUT ================= */
+/* REFUND */
+async function refund(orderId) {
+  if (!confirm("Refund this order?")) return;
+  await fetch("/admin/order-status", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: token },
+    body: JSON.stringify({ orderId, status: "REFUNDED" })
+  });
+  loadOrders(); loadAnalytics();
+}
+
+/* ANALYTICS */
+async function loadAnalytics() {
+  const res = await fetch("/admin/analytics", { headers: { Authorization: token }});
+  const data = await res.json();
+  totalRevenue.innerText = data.totalRevenue;
+  totalOrders.innerText = data.totalOrders;
+
+  revenueChart.data.labels = data.dailyRevenue.map(d => d.date);
+  revenueChart.data.datasets[0].data = data.dailyRevenue.map(d => d.revenue);
+  revenueChart.update();
+}
+
+/* RESET */
+async function resetLogs() {
+  if (!confirm("Clear logs, orders and reset stock?")) return;
+  await fetch("/admin/reset-logs", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: token }
+  });
+  loadAdmin(); loadOrders(); loadAnalytics();
+}
+
+/* LOGOUT */
 async function logout() {
   await fetch("/logout", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ token })
   });
-
   localStorage.clear();
-  window.location.href = "login.html";
+  location.href = "login.html";
 }
 
-/* ================= ORDERS ================= */
-async function loadOrders() {
-  if (isEditing) return;
-
-  const res = await fetch("/admin/orders", {
-    headers: { Authorization: token }
-  });
-
-  const orders = await res.json();
-  const container = document.getElementById("orders");
-  container.innerHTML = "";
-
-  if (orders.length === 0) {
-    container.innerHTML = "<p>No orders yet</p>";
-    return;
-  }
-
-  orders.forEach(o => {
-    let html = `
-      <div style="border:1px solid #ddd; padding:12px; margin-bottom:12px;">
-        <strong>${o.customer?.email || "Unknown"}</strong><br>
-        <small>${o.time}</small><br><br>
-        <ul>
-    `;
-
-    o.items?.forEach(i => {
-      html += `<li>${i.name} × ${i.qty} = ₹${i.subtotal}</li>`;
-    });
-
-    html += `
-        </ul>
-        <strong>Total: ₹${o.totalAmount}</strong>
-      </div>
-    `;
-
-    container.innerHTML += html;
-  });
-}
-
-/* ================= INIT ================= */
-function initChart() {
-  const ctx = document.getElementById("stockChart").getContext("2d");
-
-  chart = new Chart(ctx, {
+/* INIT */
+function initCharts() {
+  chart = new Chart(stockChart, {
     type: "bar",
-    data: {
-      labels: [],
-      datasets: [{
-        label: "Stock",
-        data: [],
-        backgroundColor: "#3ec6c6",
-        borderRadius: 8
-      }]
-    },
-    options: {
-      responsive: true,
-      animation: {
-        duration: 1200,
-        easing: "easeInOutQuart"
-      },
-      scales: {
-        y: {
-          beginAtZero: true,
-          ticks: { stepSize: 1 }
-        }
-      }
-    }
+    data: { labels: [], datasets: [{ label: "Stock", data: [] }] }
+  });
+
+  revenueChart = new Chart(revenueChart, {
+    type: "line",
+    data: { labels: [], datasets: [{ label: "Revenue", data: [], borderColor:"#3ec6c6", tension:0.3 }] }
   });
 }
 
-initChart();
-loadAdmin();
-loadOrders();
-setInterval(loadAdmin, 3000);
-setInterval(loadOrders, 4000);
-</script>
+initCharts();
+loadAdmin(); loadOrders(); loadAnalytics();
+setInterval(loadAdmin,3000);
+setInterval(loadOrders,4000);
+setInterval(loadAnalytics,5000);
 
-<!-- 🔔 Toast Notification -->
-<div id="toast" style="
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  background: #ff4d4d;
-  color: white;
-  padding: 14px 18px;
-  border-radius: 8px;
-  font-weight: bold;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-  display: none;
-  z-index: 9999;
-"></div>
+/* =========================
+   CUSTOMER ORDER HISTORY (PAID ONLY)
+========================= */
+app.get("/customer/orders", auth("customer"), async (req, res) => {
+  try {
+    const orders = await Order.find({
+      "customer.email": req.user.email,
+      paymentStatus: "PAID"
+    }).sort({ _id: -1 });
+
+    res.json(orders);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch orders" });
+  }
+});
+
+</script>
 
 </body>
 </html>

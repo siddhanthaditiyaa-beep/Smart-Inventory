@@ -343,4 +343,93 @@ th, td {
   }
 }
 
+/* =========================
+   📱 MOBILE CART BAR
+========================= */
+#mobileCartBar {
+  display: none;
+}
 
+@media (max-width: 768px) {
+  #mobileCartBar {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #ffffff;
+    border-top: 1px solid #ddd;
+    padding: 12px 16px;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 -4px 10px rgba(0,0,0,0.1);
+    z-index: 9999;
+  }
+
+  #mobileCartBar button {
+    width: auto;
+    padding: 10px 16px;
+  }
+}
+
+/* =========================
+   📱 MOBILE ORDER CARDS
+========================= */
+@media (max-width: 768px) {
+  #orders > div {
+    border-radius: 12px;
+    padding: 14px;
+    background: #fafafa;
+  }
+
+  #orders ul {
+    padding-left: 0;
+  }
+
+  #orders li {
+    list-style: none;
+    padding: 6px 0;
+    font-size: 14px;
+  }
+
+  #orders button {
+    margin-top: 10px;
+  }
+}
+
+/* =========================
+   🌙 DARK MODE
+========================= */
+@media (prefers-color-scheme: dark) {
+  body {
+    background: #121212;
+    color: #eaeaea;
+  }
+
+  .container,
+  .card,
+  .login-card {
+    background: #1e1e1e;
+    box-shadow: none;
+  }
+
+  input {
+    background: #2a2a2a;
+    color: #fff;
+    border: 1px solid #444;
+  }
+
+  table th,
+  table td {
+    border-color: #333;
+  }
+
+  button {
+    background: #3ec6c6;
+  }
+
+  #mobileCartBar {
+    background: #1e1e1e;
+    border-top: 1px solid #333;
+  }
+}

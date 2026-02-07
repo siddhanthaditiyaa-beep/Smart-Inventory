@@ -10,7 +10,18 @@
 
 <div class="container">
   <h1>🛒 Shop</h1>
-  <button onclick="logout()" class="login-btn" style="width:120px">Logout</button>
+
+<div style="display:flex; gap:10px; flex-wrap:wrap;">
+  <button onclick="logout()" class="login-btn" style="width:120px">
+    Logout
+  </button>
+
+  <button onclick="window.location.href='customer-orders.html'"
+    class="login-btn" style="width:160px">
+    🧾 My Orders
+  </button>
+</div>
+
 
   <div id="items" class="grid"></div>
 
@@ -21,6 +32,12 @@
 
   <button onclick="checkout()">Checkout</button>
   <p id="msg"></p>
+
+  <hr>
+
+  <!-- 👥 ORDER HISTORY -->
+  <h2>📦 My Orders</h2>
+  <div id="orders"></div>
 </div>
 
 <script>
@@ -50,17 +67,14 @@ async function loadItems() {
       <div class="item-card">
         <h3>${item.name}</h3>
 
-        <!-- 💰 PRICE -->
         <p style="font-weight:bold; margin:6px 0;">
           ₹ ${item.price ?? 0}
         </p>
 
         ${
-          item.restocking
-            ? `<p class="alert">🔄 Restocking... please wait</p>`
-            : item.warning
-              ? `<span class="badge">Only ${item.warning} left</span>`
-              : ""
+          item.warning
+            ? `<span class="badge">Only ${item.warning} left</span>`
+            : ""
         }
 
         <button ${item.canBuy ? "" : "disabled"}
@@ -88,19 +102,31 @@ function remove(key) {
 /* ================= CART VIEW ================= */
 function renderCart() {
   const ul = document.getElementById("cart");
+  const cartInfo = document.getElementById("cartInfo");
+
   ul.innerHTML = "";
+  let totalItems = 0;
+  let totalPrice = 0;
 
   Object.keys(cart).forEach(key => {
+    totalItems += cart[key];
+    totalPrice += cart[key] * 1; // price shown on payment page
+
     ul.innerHTML += `
       <li>
-        ${key} x ${cart[key]}
+        ${key} × ${cart[key]}
         <button onclick="remove('${key}')">➖</button>
       </li>
     `;
   });
+
+  if (cartInfo) {
+    cartInfo.innerText = `🧺 ${totalItems} items | ₹${totalPrice}`;
+  }
 }
 
-/* ================= CHECKOUT (UPDATED ONLY THIS) ================= */
+
+/* ================= CHECKOUT ================= */
 function checkout() {
   if (Object.keys(cart).length === 0) {
     alert("Cart is empty");
@@ -111,16 +137,60 @@ function checkout() {
   window.location.href = "payment.html";
 }
 
+/* ================= ORDER HISTORY ================= */
+async function loadOrders() {
+  const res = await fetch("/customer/orders", {
+    headers: { Authorization: token }
+  });
+
+  const orders = await res.json();
+  const container = document.getElementById("orders");
+  container.innerHTML = "";
+
+  if (orders.length === 0) {
+    container.innerHTML = "<p>No past orders</p>";
+    return;
+  }
+
+  orders.forEach(o => {
+    let html = `
+      <div style="border:1px solid #ddd; padding:12px; margin-bottom:12px;">
+        <strong>Order Date:</strong> ${o.time}<br><br>
+        <ul>
+    `;
+
+    o.items.forEach(i => {
+      html += `<li>${i.name} × ${i.qty} = ₹${i.subtotal}</li>`;
+    });
+
+    html += `
+        </ul>
+        <strong>Total: ₹${o.totalAmount}</strong>
+      </div>
+    `;
+
+    container.innerHTML += html;
+  });
+}
+
 /* ================= LOGOUT ================= */
 function logout() {
   localStorage.clear();
   window.location.href = "login.html";
 }
 
-/* ================= LIVE REFRESH ================= */
+/* ================= INIT ================= */
 loadItems();
+loadOrders();
 setInterval(loadItems, 3000);
+setInterval(loadOrders, 5000);
 </script>
+
+<!-- 📱 Mobile Cart Bar -->
+<div id="mobileCartBar">
+  <span id="cartInfo">🧺 0 items | ₹0</span>
+  <button onclick="checkout()">Checkout</button>
+</div>
 
 </body>
 </html>
