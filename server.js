@@ -171,6 +171,41 @@ app.post("/logout", (req, res) => {
   res.json({ message: "Logged out" });
 });
 
+/* =================================================
+   🔍 MONITORING AGENT (RESTORED)
+================================================= */
+setInterval(async () => {
+  const items = await Item.find();
+  for (const item of items) {
+    if (item.stock <= 3) {
+      await Log.create({
+        type: "monitoring",
+        item: item.name,
+        stock: item.stock,
+        time: new Date().toLocaleString()
+      });
+    }
+  }
+}, 3000);
+
+/* =================================================
+   🤖 FORECASTING AGENT (AUTO RESTOCK RESTORED)
+================================================= */
+setInterval(async () => {
+  const items = await Item.find();
+  for (const item of items) {
+    if (item.stock === 0) {
+      await Item.updateOne({ key: item.key }, { $inc: { stock: 10 } });
+      await Log.create({
+        type: "forecasting",
+        item: item.name,
+        stock: 10,
+        time: new Date().toLocaleString()
+      });
+    }
+  }
+}, 5000);
+
 /* =========================
    SHOP
 ========================= */
@@ -236,9 +271,9 @@ app.post("/checkout", auth("customer"), async (req, res) => {
   res.json({ message: "Order placed successfully" });
 });
 
-/* =========================================================
-   ✅ NEW: CUSTOMER ORDER HISTORY (PAID ONLY)
-========================================================= */
+/* =========================
+   CUSTOMER ORDER HISTORY (PAID ONLY)
+========================= */
 app.get("/customer/orders", auth("customer"), async (req, res) => {
   const orders = await Order.find({
     "customer.email": req.user.email,
@@ -247,11 +282,6 @@ app.get("/customer/orders", auth("customer"), async (req, res) => {
 
   res.json(orders);
 });
-
-/* =========================
-   ADMIN (unchanged)
-========================= */
-// admin routes remain exactly as you already have them
 
 /* =========================
    SERVER START
@@ -271,15 +301,3 @@ mongoose
     console.error(err);
     process.exit(1);
   });
-
-  /* =========================
-   👥 CUSTOMER ORDER HISTORY
-========================= */
-app.get("/customer/orders", auth("customer"), async (req, res) => {
-  const orders = await Order.find({
-    "customer.email": req.user.email,
-    paymentStatus: "PAID"
-  }).sort({ _id: -1 });
-
-  res.json(orders);
-});

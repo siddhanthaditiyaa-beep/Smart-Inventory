@@ -8,8 +8,6 @@
 
 <body class="admin-body">
 
-  <button class="dark-toggle" onclick="toggleDarkMode()">🌙</button>
-
 <div class="admin-header">
   <h1>📊 Admin Dashboard</h1>
   <button class="logout-btn" onclick="logout()">Logout</button>
@@ -51,8 +49,8 @@
   <!-- REVENUE ANALYTICS -->
   <div class="card">
     <h2>💰 Revenue Analytics</h2>
-    <p><strong>Total Revenue:</strong> ₹<span id="totalRevenue">0</span></p>
-    <p><strong>Total Orders:</strong> <span id="totalOrders">0</span></p>
+    <p><b>Total Revenue:</b> ₹<span id="totalRevenue">0</span></p>
+    <p><b>Total Orders:</b> <span id="totalOrders">0</span></p>
     <canvas id="revenueChart" height="220"></canvas>
   </div>
 
@@ -84,42 +82,68 @@ const role = localStorage.getItem("role");
 
 if (!token || role !== "admin") location.href = "login.html";
 
-let chart, revenueChart;
+const inventoryTable = document.getElementById("inventoryTable");
+const ordersDiv = document.getElementById("orders");
+
+let stockChart, revenueChart;
 let isEditing = false;
 
-/* LOAD ADMIN */
+/* ================= LOAD ADMIN ================= */
 async function loadAdmin() {
   if (isEditing) return;
-  const res = await fetch("/admin-data", { headers: { Authorization: token }});
+
+  const res = await fetch("/admin-data", {
+    headers: { Authorization: token }
+  });
   const data = await res.json();
+
   renderInventory(data.inventory);
   renderLogs(data.forecasting, "forecastingLogs");
   renderLogs(data.monitoring, "monitoringLogs");
-  renderChart(data.inventory);
+  renderStockChart(data.inventory);
 }
 
-/* INVENTORY */
+/* ================= INVENTORY ================= */
 function renderInventory(items) {
   inventoryTable.innerHTML = "";
+
   items.forEach(i => {
     inventoryTable.innerHTML += `
       <tr>
         <td>${i.name}</td>
-        <td><input type="number" value="${i.stock}" min="0"
-          onfocus="pauseRefresh()"
-          onblur="saveStock('${i.key}', this.value)"></td>
-        <td><input type="number" value="${i.price ?? 0}" min="0"
-          onfocus="pauseRefresh()"
-          onblur="savePrice('${i.key}', this.value)"></td>
-        <td><button class="delete-btn" onclick="deleteItem('${i.key}')">✖</button></td>
-      </tr>`;
+        <td>
+          <input type="number" value="${i.stock}" min="0"
+            onfocus="pauseRefresh()"
+            onblur="saveStock('${i.key}', this.value)">
+        </td>
+        <td>
+          <input type="number" value="${i.price ?? 0}" min="0"
+            onfocus="pauseRefresh()"
+            onblur="savePrice('${i.key}', this.value)">
+        </td>
+        <td>
+          <button class="delete-btn" onclick="deleteItem('${i.key}')">✖</button>
+        </td>
+      </tr>
+    `;
   });
+}
+
+function pauseRefresh() { isEditing = true; }
+function resumeRefresh() {
+  isEditing = false;
+  loadAdmin();
+  loadOrders();
+  loadAnalytics();
 }
 
 async function saveStock(key, stock) {
   await fetch("/admin/update-stock", {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: token },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: token
+    },
     body: JSON.stringify({ key, stock: Number(stock) })
   });
   resumeRefresh();
@@ -128,62 +152,41 @@ async function saveStock(key, stock) {
 async function savePrice(key, price) {
   await fetch("/admin/update-price", {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: token },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: token
+    },
     body: JSON.stringify({ key, price: Number(price) })
   });
   resumeRefresh();
 }
 
-function pauseRefresh(){ isEditing = true; }
-function resumeRefresh(){
-  isEditing = false;
-  loadAdmin(); loadOrders(); loadAnalytics();
-}
-
-/* LOGS */
+/* ================= LOGS ================= */
 function renderLogs(logs, id) {
-  document.getElementById(id).innerHTML =
-    logs.length
-      ? logs.map(l => `<li><b>${l.item}</b> → ${l.stock}<br><small>${l.time}</small></li>`).join("")
-      : "<li>No logs yet</li>";
+  const el = document.getElementById(id);
+  el.innerHTML = logs.length
+    ? logs.map(l =>
+        `<li><b>${l.item}</b> → ${l.stock}<br><small>${l.time}</small></li>`
+      ).join("")
+    : "<li>No logs yet</li>";
 }
 
-/* STOCK CHART */
-function renderChart(items) {
-  chart.data.labels = items.map(i => i.name);
-  chart.data.datasets[0].data = items.map(i => i.stock);
-  chart.update();
+/* ================= STOCK CHART ================= */
+function renderStockChart(items) {
+  stockChart.data.labels = items.map(i => i.name);
+  stockChart.data.datasets[0].data = items.map(i => i.stock);
+  stockChart.update();
 }
 
-/* ADD ITEM */
-async function addItem() {
-  await fetch("/admin/add-item", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: token },
-    body: JSON.stringify({
-      name: itemName.value.trim(),
-      stock: Number(itemStock.value),
-      price: Number(itemPrice.value)
-    })
-  });
-  itemName.value = itemStock.value = itemPrice.value = "";
-  loadAdmin();
-}
-
-/* DELETE ITEM */
-async function deleteItem(key) {
-  await fetch(`/admin/delete-item/${key}`, {
-    method: "DELETE",
-    headers: { Authorization: token }
-  });
-  loadAdmin();
-}
-
-/* ORDERS */
+/* ================= ORDERS ================= */
 async function loadOrders() {
   if (isEditing) return;
-  const res = await fetch("/admin/orders", { headers: { Authorization: token }});
+
+  const res = await fetch("/admin/orders", {
+    headers: { Authorization: token }
+  });
   const orders = await res.json();
+
   ordersDiv.innerHTML = orders.length ? "" : "<p>No orders yet</p>";
 
   orders.forEach(o => {
@@ -192,124 +195,116 @@ async function loadOrders() {
         <b>${o.customer.fname} ${o.customer.lname}</b><br>
         <small>${o.customer.email}</small><br>
         <small>${o.time}</small><br><br>
-        <ul>${o.items.map(i => `<li>${i.name} × ${i.qty} = ₹${i.subtotal}</li>`).join("")}</ul>
+
+        <ul>
+          ${o.items.map(i =>
+            `<li>${i.name} × ${i.qty} = ₹${i.subtotal}</li>`
+          ).join("")}
+        </ul>
+
         <b>Total: ₹${o.totalAmount}</b><br>
-        <b>Status:</b>
-        <span style="padding:4px 8px;border-radius:6px;color:white;
-          background:${o.paymentStatus==="PAID"?"green":o.paymentStatus==="FAILED"?"red":"orange"}">
-          ${o.paymentStatus}
-        </span><br><br>
+        <b>Status:</b> ${o.paymentStatus}<br><br>
 
         <a href="/admin/invoice/${o._id}" target="_blank">
           <button>⬇ Invoice</button>
         </a>
-
-        ${o.paymentStatus === "PAID" ? `
-          <button onclick="refund('${o._id}')"
-            style="background:#ff9800;margin-left:6px;">
-            🔄 Refund
-          </button>` : ""}
-      </div>`;
+      </div>
+    `;
   });
 }
 
-/* REFUND */
-async function refund(orderId) {
-  if (!confirm("Refund this order?")) return;
-  await fetch("/admin/order-status", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: token },
-    body: JSON.stringify({ orderId, status: "REFUNDED" })
-  });
-  loadOrders(); loadAnalytics();
-}
-
-/* ANALYTICS */
+/* ================= ANALYTICS ================= */
 async function loadAnalytics() {
-  const res = await fetch("/admin/analytics", { headers: { Authorization: token }});
+  const res = await fetch("/admin/analytics", {
+    headers: { Authorization: token }
+  });
   const data = await res.json();
-  totalRevenue.innerText = data.totalRevenue;
-  totalOrders.innerText = data.totalOrders;
+
+  document.getElementById("totalRevenue").innerText = data.totalRevenue;
+  document.getElementById("totalOrders").innerText = data.totalOrders;
 
   revenueChart.data.labels = data.dailyRevenue.map(d => d.date);
   revenueChart.data.datasets[0].data = data.dailyRevenue.map(d => d.revenue);
   revenueChart.update();
 }
 
-/* RESET */
-async function resetLogs() {
-  if (!confirm("Clear logs, orders and reset stock?")) return;
-  await fetch("/admin/reset-logs", {
+/* ================= ADD / DELETE ================= */
+async function addItem() {
+  await fetch("/admin/add-item", {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: token }
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: token
+    },
+    body: JSON.stringify({
+      name: itemName.value.trim(),
+      stock: Number(itemStock.value),
+      price: Number(itemPrice.value)
+    })
   });
-  loadAdmin(); loadOrders(); loadAnalytics();
+
+  itemName.value = itemStock.value = itemPrice.value = "";
+  loadAdmin();
 }
 
-/* LOGOUT */
+async function deleteItem(key) {
+  await fetch(`/admin/delete-item/${key}`, {
+    method: "DELETE",
+    headers: { Authorization: token }
+  });
+  loadAdmin();
+}
+
+/* ================= RESET ================= */
+async function resetLogs() {
+  if (!confirm("Clear logs, orders & reset stocks?")) return;
+
+  await fetch("/admin/reset-logs", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: token
+    }
+  });
+
+  loadAdmin();
+  loadOrders();
+  loadAnalytics();
+}
+
+/* ================= LOGOUT ================= */
 async function logout() {
   await fetch("/logout", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ token })
   });
+
   localStorage.clear();
   location.href = "login.html";
 }
 
-/* INIT */
+/* ================= INIT ================= */
 function initCharts() {
-  chart = new Chart(stockChart, {
-    type: "bar",
-    data: { labels: [], datasets: [{ label: "Stock", data: [] }] }
-  });
+  stockChart = new Chart(
+    document.getElementById("stockChart"),
+    { type: "bar", data: { labels: [], datasets: [{ label: "Stock", data: [] }] } }
+  );
 
-  revenueChart = new Chart(revenueChart, {
-    type: "line",
-    data: { labels: [], datasets: [{ label: "Revenue", data: [], borderColor:"#3ec6c6", tension:0.3 }] }
-  });
+  revenueChart = new Chart(
+    document.getElementById("revenueChart"),
+    { type: "line", data: { labels: [], datasets: [{ label: "Revenue", data: [], borderColor:"#3ec6c6" }] } }
+  );
 }
 
 initCharts();
-loadAdmin(); loadOrders(); loadAnalytics();
-setInterval(loadAdmin,3000);
-setInterval(loadOrders,4000);
-setInterval(loadAnalytics,5000);
+loadAdmin();
+loadOrders();
+loadAnalytics();
 
-/* =========================
-   CUSTOMER ORDER HISTORY (PAID ONLY)
-========================= */
-app.get("/customer/orders", auth("customer"), async (req, res) => {
-  try {
-    const orders = await Order.find({
-      "customer.email": req.user.email,
-      paymentStatus: "PAID"
-    }).sort({ _id: -1 });
-
-    res.json(orders);
-  } catch (err) {
-    res.status(500).json({ message: "Failed to fetch orders" });
-  }
-});
-
-</script>
-
-<script>
-function toggleDarkMode() {
-  document.body.classList.toggle("dark");
-
-  if (document.body.classList.contains("dark")) {
-    localStorage.setItem("darkMode", "on");
-  } else {
-    localStorage.setItem("darkMode", "off");
-  }
-}
-
-window.onload = () => {
-  if (localStorage.getItem("darkMode") === "on") {
-    document.body.classList.add("dark");
-  }
-};
+setInterval(loadAdmin, 3000);
+setInterval(loadOrders, 4000);
+setInterval(loadAnalytics, 5000);
 </script>
 
 </body>
