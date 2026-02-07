@@ -228,96 +228,119 @@ th, td {
   padding: 6px 10px;
   border-radius: 4px;
 }
-
 /* =================================================
-   📱 MOBILE RESPONSIVENESS (NEW – SAFE ADDITION)
+   📱 MOBILE RESPONSIVENESS (CLEAN + FINAL)
 ================================================= */
-
 @media (max-width: 768px) {
 
-  /* Global */
+  /* ===== GLOBAL ===== */
   body {
+    margin: 0;
+    padding: 0;
     font-size: 14px;
   }
 
-  /* Login */
-  .login-card {
-    width: 90%;
-    padding: 25px;
+  h1, h2, h3 {
+    text-align: center;
   }
 
-  /* Containers */
+  /* ===== CONTAINERS ===== */
   .container {
-    margin: 20px 10px;
-    padding: 20px;
+    margin: 0;
+    padding: 16px;
+    border-radius: 0;
   }
 
-  /* Grid -> single column */
+  /* ===== LOGIN ===== */
+  .login-card {
+    width: 100%;
+    padding: 24px;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  /* ===== GRID / ITEMS ===== */
   .grid {
     grid-template-columns: 1fr;
   }
 
-  /* Buttons */
+  .item-card {
+    padding: 18px;
+  }
+
+  /* ===== BUTTONS ===== */
   button,
   .login-btn,
   .logout-btn {
     width: 100%;
-    padding: 14px;
     font-size: 16px;
+    padding: 14px;
   }
 
-  /* Admin */
-  .admin-header {
-    flex-direction: column;
-    gap: 15px;
-    padding: 20px;
-    text-align: center;
-  }
-
-  .admin-container {
-    grid-template-columns: 1fr;
-    padding: 15px;
-  }
-
-  /* Tables */
-  table {
-    display: block;
-    overflow-x: auto;
-    white-space: nowrap;
-  }
-
-  th, td {
-    font-size: 13px;
-  }
-
-  /* Inputs */
+  /* ===== INPUTS ===== */
   input {
     font-size: 16px;
     padding: 14px;
   }
 
-  /* Cards */
-  .card {
-    padding: 18px;
+  /* ===== CART ===== */
+  #cart li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
   }
 
-  /* Chart */
+  /* ===== ADMIN HEADER ===== */
+  .admin-header {
+    flex-direction: column;
+    gap: 12px;
+    text-align: center;
+    padding: 20px;
+  }
+
+  /* ===== ADMIN LAYOUT ===== */
+  .admin-container {
+    grid-template-columns: 1fr;
+    padding: 12px;
+  }
+
+  .card {
+    padding: 16px;
+  }
+
+  /* ===== TABLES ===== */
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+    font-size: 14px;
+  }
+
+  th, td {
+    padding: 8px;
+  }
+
+  table input {
+    width: 60px;
+    font-size: 14px;
+  }
+
+  /* ===== CHARTS ===== */
   canvas {
     max-width: 100% !important;
+    height: auto !important;
+  }
+
+  /* ===== PAYMENT PAGE ===== */
+  .container[style*="max-width"] {
+    max-width: 100% !important;
+  }
+
+  /* ===== ORDERS ===== */
+  #orders > div {
+    font-size: 14px;
   }
 }
 
-/* Small phones */
-@media (max-width: 420px) {
-  h1 {
-    font-size: 22px;
-  }
 
-  h2 {
-    font-size: 18px;
-  }
-
-  .badge {
-    font-size: 11px;
-  }
-}
