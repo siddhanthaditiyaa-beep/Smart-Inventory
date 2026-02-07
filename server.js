@@ -52,7 +52,7 @@ const ItemSchema = new mongoose.Schema({
 
 /* 🔧 EXTENDED ORDER SCHEMA (BACKWARD SAFE) */
 const OrderSchema = new mongoose.Schema({
-  cart: Object, // legacy support
+  cart: Object,
 
   customer: {
     fname: String,
@@ -225,12 +225,10 @@ app.get("/shop-items", auth("customer"), async (req, res) => {
 });
 
 /* =========================
-   CHECKOUT (FULL BILL STORAGE)
+   CHECKOUT
 ========================= */
 app.post("/checkout", auth("customer"), async (req, res) => {
   const cart = req.body.cart;
-
-  // 🔧 NEW (safe guard)
   if (!cart || Object.keys(cart).length === 0) {
     return res.status(400).json({ message: "Cart is empty" });
   }
@@ -316,18 +314,21 @@ app.get("/admin-data", auth("admin"), async (req, res) => {
   res.json({ inventory, monitoring, forecasting });
 });
 
-/* 🔧 ADMIN ORDERS (FULL BILL VIEW) */
+/* =========================
+   ADMIN ORDERS
+========================= */
 app.get("/admin/orders", auth("admin"), async (req, res) => {
   const orders = await Order.find().sort({ _id: -1 });
   res.json(orders);
 });
 
 /* =========================
-   RESET LOGS & STOCKS
+   🔥 FULL RESET (LOGS + STOCKS + ORDERS)
 ========================= */
 app.post("/admin/reset-logs", auth("admin"), async (req, res) => {
   try {
     await Log.deleteMany({});
+    await Order.deleteMany({}); // 🔥 THIS IS THE FIX
 
     const defaults = {
       chocolates: 5,
@@ -344,7 +345,7 @@ app.post("/admin/reset-logs", auth("admin"), async (req, res) => {
       await Item.updateOne({ key }, { $set: { stock: defaults[key] } });
     }
 
-    res.json({ message: "Logs and stocks reset successfully" });
+    res.json({ message: "Logs, orders, and stocks reset successfully" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
