@@ -31,36 +31,46 @@ if (!token || role !== "customer") {
 }
 
 /* =========================
-   CART + PRICES
+   CART
 ========================= */
-const cart = JSON.parse(localStorage.getItem("cart")) || {};
-const prices = {
-  milk: 50,
-  bread: 40,
-  eggs: 10
-};
-
+const cart = JSON.parse(localStorage.getItem("pendingCart")) || {};
 const summary = document.getElementById("summary");
 const totalEl = document.getElementById("total");
 let total = 0;
 
 /* =========================
-   RENDER SUMMARY
+   LOAD ITEMS + CALCULATE TOTAL
 ========================= */
-if (Object.keys(cart).length === 0) {
-  summary.innerHTML = "<li>Your cart is empty</li>";
-} else {
+async function loadSummary() {
+  const res = await fetch("/shop-items", {
+    headers: { Authorization: token }
+  });
+
+  const items = await res.json();
+
+  if (Object.keys(cart).length === 0) {
+    summary.innerHTML = "<li>Your cart is empty</li>";
+    return;
+  }
+
   Object.keys(cart).forEach(key => {
-    const cost = prices[key] * cart[key];
+    const item = items[key];
+    if (!item) return;
+
+    const cost = item.price * cart[key];
     total += cost;
 
     summary.innerHTML += `
-      <li>${key} × ${cart[key]} = ₹${cost}</li>
+      <li>
+        ${item.name} × ${cart[key]} = ₹${cost}
+      </li>
     `;
   });
+
+  totalEl.innerText = total;
 }
 
-totalEl.innerText = total;
+loadSummary();
 
 /* =========================
    PAY NOW
@@ -72,28 +82,33 @@ async function pay() {
     return;
   }
 
-  const res = await fetch("/checkout", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: token
-    },
-    body: JSON.stringify({ cart })
-  });
+  msg.innerText = "Processing payment...";
+  msg.style.color = "black";
 
-  const data = await res.json();
-  msg.innerText = data.message;
+  setTimeout(async () => {
+    const res = await fetch("/checkout", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: token
+      },
+      body: JSON.stringify({ cart })
+    });
 
-  if (res.ok) {
-    msg.style.color = "green";
-    localStorage.removeItem("cart");
+    const data = await res.json();
+    msg.innerText = data.message;
 
-    setTimeout(() => {
-      window.location.href = "customer.html";
-    }, 1500);
-  } else {
-    msg.style.color = "red";
-  }
+    if (res.ok) {
+      msg.style.color = "green";
+      localStorage.removeItem("pendingCart");
+
+      setTimeout(() => {
+        window.location.href = "customer.html";
+      }, 1500);
+    } else {
+      msg.style.color = "red";
+    }
+  }, 1200);
 }
 </script>
 
