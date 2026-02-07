@@ -50,6 +50,11 @@ async function loadItems() {
       <div class="item-card">
         <h3>${item.name}</h3>
 
+        <!-- 💰 PRICE -->
+        <p style="font-weight:bold; margin:6px 0;">
+          ₹ ${item.price ?? 0}
+        </p>
+
         ${
           item.restocking
             ? `<p class="alert">🔄 Restocking... please wait</p>`
@@ -108,10 +113,6 @@ async function checkout() {
 
   const data = await res.json();
   msg.innerText = data.message;
-
-  if (data.adjusted) {
-    msg.innerText += " ⚠️ Cart adjusted due to low stock";
-  }
 
   if (res.ok) {
     msg.style.color = "green";
