@@ -47,7 +47,7 @@ const ItemSchema = new mongoose.Schema({
   key: String,
   name: String,
   stock: Number,
-  price: { type: Number, default: 0 } // 🔧 NEW (already added earlier)
+  price: { type: Number, default: 0 }
 });
 
 const OrderSchema = new mongoose.Schema({
@@ -85,7 +85,7 @@ const Log = mongoose.model("Log", LogSchema);
 const ShelfScan = mongoose.model("ShelfScan", ShelfScanSchema);
 
 /* =========================
-   INIT (DATA SEED)
+   INIT
 ========================= */
 async function init() {
   if (!(await User.findOne({ role: "admin" }))) {
@@ -242,28 +242,22 @@ app.post("/admin/add-item", auth("admin"), async (req, res) => {
   res.json({ message: "Item added" });
 });
 
-/* 🔧 NEW: UPDATE ITEM PRICE */
+/* UPDATE PRICE */
 app.post("/admin/update-price", auth("admin"), async (req, res) => {
-  try {
-    const { key, price } = req.body;
+  const { key, price } = req.body;
+  if (price < 0) return res.status(400).json({ message: "Invalid price" });
 
-    if (price == null || price < 0) {
-      return res.status(400).json({ message: "Invalid price" });
-    }
+  await Item.updateOne({ key }, { $set: { price } });
+  res.json({ message: "Price updated" });
+});
 
-    const result = await Item.updateOne(
-      { key },
-      { $set: { price } }
-    );
+/* 🔧 NEW: UPDATE STOCK */
+app.post("/admin/update-stock", auth("admin"), async (req, res) => {
+  const { key, stock } = req.body;
+  if (stock < 0) return res.status(400).json({ message: "Invalid stock" });
 
-    if (result.matchedCount === 0) {
-      return res.status(404).json({ message: "Item not found" });
-    }
-
-    res.json({ message: "Price updated" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  await Item.updateOne({ key }, { $set: { stock } });
+  res.json({ message: "Stock updated" });
 });
 
 app.delete("/admin/delete-item/:key", auth("admin"), async (req, res) => {
@@ -307,21 +301,20 @@ app.post("/admin/reset-logs", auth("admin"), async (req, res) => {
 });
 
 /* =========================
-   MONGODB + SERVER START
+   SERVER START
 ========================= */
 const PORT = process.env.PORT || 3000;
 
 mongoose
   .connect(process.env.MONGODB_URI)
   .then(async () => {
-    console.log("✅ MongoDB Atlas connected");
+    console.log("✅ MongoDB connected");
     await init();
-
-    app.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
-    });
+    app.listen(PORT, () =>
+      console.log(`🚀 Server running on port ${PORT}`)
+    );
   })
   .catch(err => {
-    console.error("❌ MongoDB connection error", err);
+    console.error(err);
     process.exit(1);
   });

@@ -20,7 +20,6 @@
     <h2>➕ Add Item</h2>
     <input id="itemName" placeholder="Item name">
     <input id="itemStock" type="number" placeholder="Initial stock">
-    <!-- 🔧 NEW -->
     <input id="itemPrice" type="number" placeholder="Price" min="0">
     <button onclick="addItem()">Add Item</button>
   </div>
@@ -33,7 +32,6 @@
         <tr>
           <th>Item</th>
           <th>Stock</th>
-          <!-- 🔧 NEW -->
           <th>Price</th>
           <th>Action</th>
         </tr>
@@ -73,9 +71,12 @@ if (!token || role !== "admin") {
 }
 
 let chart;
+let isEditing = false;
 
 /* ================= LOAD ADMIN DATA ================= */
 async function loadAdmin() {
+  if (isEditing) return;
+
   const res = await fetch("/admin-data", {
     headers: { Authorization: token }
   });
@@ -97,17 +98,29 @@ function renderInventory(items) {
     table.innerHTML += `
       <tr>
         <td>${item.name}</td>
-        <td>${item.stock}</td>
-        <!-- 🔧 NEW -->
+
+        <td>
+          <input
+            type="number"
+            value="${item.stock}"
+            min="0"
+            style="width:70px"
+            onfocus="pauseRefresh()"
+            onblur="saveStock('${item.key}', this.value)"
+          >
+        </td>
+
         <td>
           <input
             type="number"
             value="${item.price ?? 0}"
             min="0"
-            style="width:80px"
-            onchange="updatePrice('${item.key}', this.value)"
+            style="width:70px"
+            onfocus="pauseRefresh()"
+            onblur="savePrice('${item.key}', this.value)"
           >
         </td>
+
         <td>
           <button class="delete-btn" onclick="deleteItem('${item.key}')">✖</button>
         </td>
@@ -116,8 +129,21 @@ function renderInventory(items) {
   });
 }
 
-/* ================= UPDATE PRICE (NEW) ================= */
-async function updatePrice(key, price) {
+/* ================= SAVE STOCK ================= */
+async function saveStock(key, stock) {
+  await fetch("/admin/update-stock", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: token
+    },
+    body: JSON.stringify({ key, stock: Number(stock) })
+  });
+  resumeRefresh();
+}
+
+/* ================= SAVE PRICE ================= */
+async function savePrice(key, price) {
   await fetch("/admin/update-price", {
     method: "POST",
     headers: {
@@ -126,6 +152,17 @@ async function updatePrice(key, price) {
     },
     body: JSON.stringify({ key, price: Number(price) })
   });
+  resumeRefresh();
+}
+
+/* ================= PAUSE / RESUME REFRESH ================= */
+function pauseRefresh() {
+  isEditing = true;
+}
+
+function resumeRefresh() {
+  isEditing = false;
+  loadAdmin();
 }
 
 /* ================= LOGS ================= */
@@ -156,10 +193,7 @@ function showToast(message) {
   const toast = document.getElementById("toast");
   toast.innerText = message;
   toast.style.display = "block";
-
-  setTimeout(() => {
-    toast.style.display = "none";
-  }, 3000);
+  setTimeout(() => toast.style.display = "none", 3000);
 }
 
 /* ================= GRAPH ================= */
