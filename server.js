@@ -50,8 +50,28 @@ const ItemSchema = new mongoose.Schema({
   price: { type: Number, default: 0 }
 });
 
+/* 🔧 EXTENDED ORDER SCHEMA (BACKWARD SAFE) */
 const OrderSchema = new mongoose.Schema({
-  cart: Object,
+  cart: Object, // legacy support
+
+  customer: {
+    fname: String,
+    lname: String,
+    email: String
+  },
+
+  items: [
+    {
+      key: String,
+      name: String,
+      price: Number,
+      qty: Number,
+      subtotal: Number
+    }
+  ],
+
+  totalAmount: Number,
+  paymentStatus: String,
   time: String
 });
 
@@ -187,7 +207,7 @@ setInterval(async () => {
 }, 5000);
 
 /* =========================
-   SHOP & CHECKOUT
+   SHOP
 ========================= */
 app.get("/shop-items", auth("customer"), async (req, res) => {
   const items = await Item.find();
@@ -204,27 +224,53 @@ app.get("/shop-items", auth("customer"), async (req, res) => {
   res.json(view);
 });
 
+/* =========================
+   CHECKOUT (FULL BILL STORAGE)
+========================= */
 app.post("/checkout", auth("customer"), async (req, res) => {
   const cart = req.body.cart;
-  const adjusted = {};
-  const notices = [];
+
+  // 🔧 NEW (safe guard)
+  if (!cart || Object.keys(cart).length === 0) {
+    return res.status(400).json({ message: "Cart is empty" });
+  }
+
+  const items = [];
+  let totalAmount = 0;
 
   for (const key in cart) {
     const item = await Item.findOne({ key });
     if (!item) continue;
 
-    const allowed = Math.min(cart[key], item.stock);
-    adjusted[key] = allowed;
+    const qty = Math.min(cart[key], item.stock);
+    const subtotal = qty * item.price;
 
-    if (cart[key] > item.stock) {
-      notices.push(`${item.name}: only ${item.stock} available`);
-    }
+    items.push({
+      key,
+      name: item.name,
+      price: item.price,
+      qty,
+      subtotal
+    });
 
-    await Item.updateOne({ key }, { $inc: { stock: -allowed } });
+    totalAmount += subtotal;
+    await Item.updateOne({ key }, { $inc: { stock: -qty } });
   }
 
-  await Order.create({ cart: adjusted, time: new Date().toLocaleString() });
-  res.json({ message: "Order placed", notices });
+  await Order.create({
+    cart,
+    customer: {
+      fname: req.user.fname,
+      lname: req.user.lname,
+      email: req.user.email
+    },
+    items,
+    totalAmount,
+    paymentStatus: "PAID",
+    time: new Date().toLocaleString()
+  });
+
+  res.json({ message: "Order placed successfully" });
 });
 
 /* =========================
@@ -242,7 +288,6 @@ app.post("/admin/add-item", auth("admin"), async (req, res) => {
   res.json({ message: "Item added" });
 });
 
-/* UPDATE PRICE */
 app.post("/admin/update-price", auth("admin"), async (req, res) => {
   const { key, price } = req.body;
   if (price < 0) return res.status(400).json({ message: "Invalid price" });
@@ -251,7 +296,6 @@ app.post("/admin/update-price", auth("admin"), async (req, res) => {
   res.json({ message: "Price updated" });
 });
 
-/* 🔧 NEW: UPDATE STOCK */
 app.post("/admin/update-stock", auth("admin"), async (req, res) => {
   const { key, stock } = req.body;
   if (stock < 0) return res.status(400).json({ message: "Invalid stock" });
@@ -270,6 +314,12 @@ app.get("/admin-data", auth("admin"), async (req, res) => {
   const monitoring = await Log.find({ type: "monitoring" }).sort({ _id: -1 });
   const forecasting = await Log.find({ type: "forecasting" }).sort({ _id: -1 });
   res.json({ inventory, monitoring, forecasting });
+});
+
+/* 🔧 ADMIN ORDERS (FULL BILL VIEW) */
+app.get("/admin/orders", auth("admin"), async (req, res) => {
+  const orders = await Order.find().sort({ _id: -1 });
+  res.json(orders);
 });
 
 /* =========================
