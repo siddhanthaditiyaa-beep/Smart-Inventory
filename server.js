@@ -47,7 +47,7 @@ const ItemSchema = new mongoose.Schema({
   key: String,
   name: String,
   stock: Number,
-  price: { type: Number, default: 0 } // ✅ NEW
+  price: { type: Number, default: 0 } // 🔧 NEW (already added earlier)
 });
 
 const OrderSchema = new mongoose.Schema({
@@ -196,7 +196,7 @@ app.get("/shop-items", auth("customer"), async (req, res) => {
     view[i.key] = {
       name: i.name,
       stock: i.stock,
-      price: i.price, // ✅ INCLUDED (used later)
+      price: i.price,
       canBuy: i.stock > 0,
       warning: i.stock <= 3 ? i.stock : null
     };
@@ -238,14 +238,32 @@ app.post("/admin/add-item", auth("admin"), async (req, res) => {
     return res.status(400).json({ message: "Item exists" });
   }
 
-  await Item.create({
-    key,
-    name,
-    stock,
-    price: price || 0
-  });
-
+  await Item.create({ key, name, stock, price: price || 0 });
   res.json({ message: "Item added" });
+});
+
+/* 🔧 NEW: UPDATE ITEM PRICE */
+app.post("/admin/update-price", auth("admin"), async (req, res) => {
+  try {
+    const { key, price } = req.body;
+
+    if (price == null || price < 0) {
+      return res.status(400).json({ message: "Invalid price" });
+    }
+
+    const result = await Item.updateOne(
+      { key },
+      { $set: { price } }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ message: "Item not found" });
+    }
+
+    res.json({ message: "Price updated" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.delete("/admin/delete-item/:key", auth("admin"), async (req, res) => {

@@ -20,7 +20,8 @@
     <h2>➕ Add Item</h2>
     <input id="itemName" placeholder="Item name">
     <input id="itemStock" type="number" placeholder="Initial stock">
-    <input id="itemPrice" type="number" placeholder="Price (₹)" step="0.01">
+    <!-- 🔧 NEW -->
+    <input id="itemPrice" type="number" placeholder="Price" min="0">
     <button onclick="addItem()">Add Item</button>
   </div>
 
@@ -32,6 +33,7 @@
         <tr>
           <th>Item</th>
           <th>Stock</th>
+          <!-- 🔧 NEW -->
           <th>Price</th>
           <th>Action</th>
         </tr>
@@ -96,12 +98,33 @@ function renderInventory(items) {
       <tr>
         <td>${item.name}</td>
         <td>${item.stock}</td>
-        <td>₹${item.price ?? 0}</td>
+        <!-- 🔧 NEW -->
+        <td>
+          <input
+            type="number"
+            value="${item.price ?? 0}"
+            min="0"
+            style="width:80px"
+            onchange="updatePrice('${item.key}', this.value)"
+          >
+        </td>
         <td>
           <button class="delete-btn" onclick="deleteItem('${item.key}')">✖</button>
         </td>
       </tr>
     `;
+  });
+}
+
+/* ================= UPDATE PRICE (NEW) ================= */
+async function updatePrice(key, price) {
+  await fetch("/admin/update-price", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: token
+    },
+    body: JSON.stringify({ key, price: Number(price) })
   });
 }
 
@@ -209,7 +232,7 @@ async function deleteItem(key) {
   loadAdmin();
 }
 
-/* ================= RESET LOGS + STOCKS ================= */
+/* ================= RESET ================= */
 async function resetLogs() {
   if (!confirm("Clear all logs and reset stocks?")) return;
 
@@ -271,7 +294,7 @@ loadAdmin();
 setInterval(loadAdmin, 3000);
 </script>
 
-<!-- 🔔 Toast -->
+<!-- 🔔 Toast Notification -->
 <div id="toast" style="
   position: fixed;
   bottom: 20px;
