@@ -164,7 +164,10 @@ setInterval(async () => {
 
   for (const i of items) {
     if (i.stock === 0) {
-      await Item.updateOne({ key: i.key }, { $inc: { stock: 10 } });
+      await Item.updateOne(
+        { key: i.key },
+        { $inc: { stock: 10 } }
+      );
 
       await Log.create({
         type: "forecasting",
@@ -209,7 +212,10 @@ app.post("/checkout", auth("customer"), async (req, res) => {
     const qty = Math.min(cart[key], item.stock);
     const subtotal = qty * item.price;
 
-    await Item.updateOne({ key }, { $inc: { stock: -qty } });
+    await Item.updateOne(
+      { key },
+      { $inc: { stock: -qty } }
+    );
 
     total += subtotal;
     items.push({ key, name: item.name, price: item.price, qty, subtotal });
@@ -268,12 +274,18 @@ app.get("/admin/analytics", auth("admin"), async (_, res) => {
 });
 
 app.post("/admin/update-stock", auth("admin"), async (req, res) => {
-  await Item.updateOne({ key: req.body.key }, { stock: req.body.stock });
+  await Item.updateOne(
+    { key: req.body.key },
+    { stock: req.body.stock }
+  );
   res.json({ ok: true });
 });
 
 app.post("/admin/update-price", auth("admin"), async (req, res) => {
-  await Item.updateOne({ key: req.body.key }, { price: req.body.price });
+  await Item.updateOne(
+    { key: req.body.key },
+    { price: req.body.price }
+  );
   res.json({ ok: true });
 });
 
@@ -292,9 +304,31 @@ app.delete("/admin/delete-item/:key", auth("admin"), async (req, res) => {
   res.json({ ok: true });
 });
 
+/* =========================
+   RESET LOGS & STOCKS (FIXED)
+========================= */
 app.post("/admin/reset-logs", auth("admin"), async (_, res) => {
   await Log.deleteMany({});
   await Order.deleteMany({});
+
+  const defaults = {
+    chocolates: 5,
+    biscuits: 8,
+    chips: 6,
+    juice: 7,
+    "soft-drinks": 9,
+    "canned-food": 4,
+    rice: 7,
+    salt: 10
+  };
+
+  for (const key in defaults) {
+    await Item.updateOne(
+      { key },
+      { stock: defaults[key] }
+    );
+  }
+
   res.json({ ok: true });
 });
 
