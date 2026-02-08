@@ -4,6 +4,20 @@
   <title>Admin Dashboard | Smart Inventory</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    /* 🔴 STOCK ALERT BANNER */
+    #stockAlert {
+      display: none;
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #ef4444;
+      padding: 12px 18px;
+      border-radius: 8px;
+      margin: 12px 40px;
+      font-weight: bold;
+    }
+  </style>
 </head>
 
 <body class="admin-body">
@@ -12,6 +26,9 @@
   <h1>📊 Admin Dashboard</h1>
   <button class="logout-btn" onclick="logout()">Logout</button>
 </div>
+
+<!-- 🔴 LIVE STOCK ALERT -->
+<div id="stockAlert"></div>
 
 <div class="admin-container">
 
@@ -84,42 +101,22 @@ if (!token || role !== "admin") location.href = "login.html";
 
 const inventoryTable = document.getElementById("inventoryTable");
 const ordersDiv = document.getElementById("orders");
+const alertBox = document.getElementById("stockAlert");
 
 let stockChart, revenueChart;
 let isEditing = false;
 
-/* ================= ALERT MEMORY ================= */
-let zeroStockAlerted = JSON.parse(localStorage.getItem("zeroStockAlerted") || "{}");
-
-/* ================= INIT CHARTS ================= */
+/* ================= CHARTS ================= */
 function initCharts() {
   stockChart = new Chart(document.getElementById("stockChart"), {
     type: "bar",
-    data: {
-      labels: [],
-      datasets: [{
-        label: "Stock",
-        data: [],
-        backgroundColor: []
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: { legend: { display: false } }
-    }
+    data: { labels: [], datasets: [{ data: [], backgroundColor: [] }] },
+    options: { plugins: { legend: { display: false } } }
   });
 
   revenueChart = new Chart(document.getElementById("revenueChart"), {
     type: "line",
-    data: {
-      labels: [],
-      datasets: [{
-        label: "Revenue",
-        data: [],
-        borderColor: "#3ec6c6",
-        tension: 0.3
-      }]
-    }
+    data: { labels: [], datasets: [{ data: [], borderColor: "#3ec6c6", tension: 0.3 }] }
   });
 }
 
@@ -127,16 +124,34 @@ function initCharts() {
 async function loadAdmin() {
   if (isEditing) return;
 
-  const res = await fetch("/admin-data", {
-    headers: { Authorization: token }
-  });
+  const res = await fetch("/admin-data", { headers: { Authorization: token }});
   const data = await res.json();
 
   renderInventory(data.inventory || []);
+  renderStockChart(data.inventory || []);
   renderLogs(data.forecasting || [], "forecastingLogs");
   renderLogs(data.monitoring || [], "monitoringLogs");
-  renderStockChart(data.inventory || []);
-  checkZeroStockAlerts(data.inventory || []);
+  renderStockAlerts(data.inventory || []);
+}
+
+/* ================= ALERT BANNER ================= */
+function renderStockAlerts(items) {
+  const danger = items.filter(i => i.stock <= 3);
+
+  if (!danger.length) {
+    alertBox.style.display = "none";
+    return;
+  }
+
+  alertBox.style.display = "block";
+  alertBox.innerHTML = `
+    ⚠️ <u>Low / Out of Stock Items</u><br>
+    ${danger.map(i =>
+      i.stock === 0
+        ? `🔴 ${i.name} is <b>OUT OF STOCK</b>`
+        : `🟠 ${i.name} is LOW (${i.stock})`
+    ).join("<br>")}
+  `;
 }
 
 /* ================= INVENTORY ================= */
@@ -146,19 +161,11 @@ function renderInventory(items) {
     inventoryTable.innerHTML += `
       <tr>
         <td>${i.name}</td>
-        <td>
-          <input type="number" value="${i.stock}"
-            onfocus="isEditing=true"
-            onblur="saveStock('${i.key}', this.value)">
-        </td>
-        <td>
-          <input type="number" value="${i.price ?? 0}"
-            onfocus="isEditing=true"
-            onblur="savePrice('${i.key}', this.value)">
-        </td>
-        <td>
-          <button class="delete-btn" onclick="deleteItem('${i.key}')">✖</button>
-        </td>
+        <td><input type="number" value="${i.stock}" onfocus="isEditing=true"
+          onblur="saveStock('${i.key}', this.value)"></td>
+        <td><input type="number" value="${i.price ?? 0}" onfocus="isEditing=true"
+          onblur="savePrice('${i.key}', this.value)"></td>
+        <td><button class="delete-btn" onclick="deleteItem('${i.key}')">✖</button></td>
       </tr>`;
   });
 }
@@ -172,37 +179,18 @@ function renderStockChart(items) {
   stockChart.update();
 }
 
-/* ================= ZERO STOCK POPUP ================= */
-function checkZeroStockAlerts(items) {
-  items.forEach(i => {
-    if (i.stock === 0 && !zeroStockAlerted[i.key]) {
-      alert(`⚠️ STOCK ALERT\n\n${i.name} is OUT OF STOCK!`);
-      zeroStockAlerted[i.key] = true;
-    }
-
-    if (i.stock > 0 && zeroStockAlerted[i.key]) {
-      delete zeroStockAlerted[i.key];
-    }
-  });
-
-  localStorage.setItem("zeroStockAlerted", JSON.stringify(zeroStockAlerted));
-}
-
 /* ================= LOGS ================= */
 function renderLogs(logs, id) {
-  const el = document.getElementById(id);
-  el.innerHTML = logs.length
-    ? logs.map(l => `<li><b>${l.item}</b> → ${l.stock}<br><small>${l.time}</small></li>`).join("")
-    : "<li>No logs yet</li>";
+  document.getElementById(id).innerHTML =
+    logs.length
+      ? logs.map(l => `<li><b>${l.item}</b> → ${l.stock}<br><small>${l.time}</small></li>`).join("")
+      : "<li>No logs yet</li>";
 }
 
 /* ================= ORDERS ================= */
 async function loadOrders() {
-  const res = await fetch("/admin/orders", {
-    headers: { Authorization: token }
-  });
+  const res = await fetch("/admin/orders", { headers: { Authorization: token }});
   const orders = await res.json();
-
   ordersDiv.innerHTML = orders.length ? "" : "<p>No orders yet</p>";
 
   orders.forEach(o => {
@@ -210,28 +198,19 @@ async function loadOrders() {
       <div style="border:1px solid #ddd;padding:12px;margin-bottom:12px;">
         <b>${o.customer.fname} ${o.customer.lname}</b><br>
         <small>${o.customer.email}</small><br>
-        <small>${o.time}</small><br><br>
-        <ul>
-          ${o.items.map(i => `<li>${i.name} × ${i.qty} = ₹${i.subtotal}</li>`).join("")}
-        </ul>
-        <b>Total: ₹${o.totalAmount}</b><br>
-        <b>Status:</b> ${o.paymentStatus}
+        <small>${o.time}</small>
       </div>`;
   });
 }
 
 /* ================= ANALYTICS ================= */
 async function loadAnalytics() {
-  const res = await fetch("/admin/analytics", {
-    headers: { Authorization: token }
-  });
-  const data = await res.json();
-
-  totalRevenue.innerText = data.totalRevenue || 0;
-  totalOrders.innerText = data.totalOrders || 0;
-
-  revenueChart.data.labels = data.dailyRevenue.map(d => d.date);
-  revenueChart.data.datasets[0].data = data.dailyRevenue.map(d => d.revenue);
+  const res = await fetch("/admin/analytics", { headers: { Authorization: token }});
+  const d = await res.json();
+  totalRevenue.innerText = d.totalRevenue || 0;
+  totalOrders.innerText = d.totalOrders || 0;
+  revenueChart.data.labels = d.dailyRevenue.map(x => x.date);
+  revenueChart.data.datasets[0].data = d.dailyRevenue.map(x => x.revenue);
   revenueChart.update();
 }
 
@@ -243,7 +222,6 @@ async function saveStock(key, stock) {
     body: JSON.stringify({ key, stock: Number(stock) })
   });
   isEditing = false;
-  loadAdmin();
 }
 
 async function savePrice(key, price) {
@@ -253,7 +231,6 @@ async function savePrice(key, price) {
     body: JSON.stringify({ key, price: Number(price) })
   });
   isEditing = false;
-  loadAdmin();
 }
 
 async function addItem() {
@@ -267,7 +244,6 @@ async function addItem() {
     })
   });
   itemName.value = itemStock.value = itemPrice.value = "";
-  loadAdmin();
 }
 
 async function deleteItem(key) {
@@ -275,17 +251,11 @@ async function deleteItem(key) {
     method: "DELETE",
     headers: { Authorization: token }
   });
-  loadAdmin();
 }
 
 async function resetLogs() {
   if (!confirm("Reset everything?")) return;
-  await fetch("/admin/reset-logs", {
-    method: "POST",
-    headers: { Authorization: token }
-  });
-  localStorage.removeItem("zeroStockAlerted");
-  loadAdmin(); loadOrders(); loadAnalytics();
+  await fetch("/admin/reset-logs", { method: "POST", headers: { Authorization: token }});
 }
 
 async function logout() {
@@ -304,7 +274,7 @@ loadAdmin();
 loadOrders();
 loadAnalytics();
 
-setInterval(loadAdmin, 3000);
+setInterval(loadAdmin, 3000);   // 🔁 continuous alerts
 setInterval(loadOrders, 4000);
 setInterval(loadAnalytics, 5000);
 </script>
