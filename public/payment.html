@@ -67,10 +67,11 @@ const token = localStorage.getItem("token");
 const role = localStorage.getItem("role");
 const cart = JSON.parse(localStorage.getItem("pendingCart") || "{}");
 
+// 🔐 Soft session check (DO NOT redirect immediately)
 if (!token || role !== "customer") {
-  alert("⚠️ Session expired. Please login again.");
-  window.location.href = "login.html";
+  console.warn("Session missing, will validate during checkout");
 }
+
 
 /* =========================
    DOM
@@ -131,6 +132,13 @@ async function pay() {
       },
       body: JSON.stringify({ cart })
     });
+
+    if (res.status === 401) {
+  alert("⚠️ Session expired. Please login again.");
+  window.location.href = "login.html";
+  return;
+}
+
 
     if (!res.ok) {
       actionArea.innerHTML = `
