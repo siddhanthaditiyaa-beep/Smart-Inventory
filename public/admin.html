@@ -150,12 +150,16 @@ async function loadAdmin() {
   renderLogs(d.monitoring, "monitoringLogs");
   renderLogs(d.forecasting, "forecastingLogs");
 
-  d.inventory.forEach(i => {
-    if (i.stock <= 3) {
-      showToast(`${i.name} is LOW (${i.stock})`);
-    }
-  });
-}
+  // 🔔 Forecasting-based toast (ONLY when stock hits 0)
+d.forecasting.forEach(log => {
+  if (!window._forecastShown) window._forecastShown = {};
+
+  if (!window._forecastShown[log.item]) {
+    showToast(`${log.item} was OUT OF STOCK. Auto-restocked.`);
+    window._forecastShown[log.item] = true;
+  }
+});
+
 
 /* ================= INVENTORY ================= */
 function renderInventory(items) {
@@ -227,11 +231,23 @@ async function deleteItem(key) {
 }
 
 async function resetLogs() {
+  const ok = confirm(
+    "⚠️ This will:\n\n• Reset ALL inventory stocks\n• Delete ALL orders\n• Clear ALL logs\n\nDo you want to continue?"
+  );
+
+  if (!ok) return;
+
   await fetch("/admin/reset-logs", {
     method: "POST",
     headers: { Authorization: token }
   });
+
+  // Clear forecasting toast memory
+  window._forecastShown = {};
+
+  loadAdmin();
 }
+
 
 async function logout() {
   await fetch("/logout", {
