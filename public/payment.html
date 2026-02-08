@@ -3,45 +3,6 @@
 <head>
   <title>Payment | Smart Inventory</title>
   <link rel="stylesheet" href="style.css">
-
-  <style>
-    .loader {
-      width: 36px;
-      height: 36px;
-      border: 4px solid #ddd;
-      border-top: 4px solid #3ec6c6;
-      border-radius: 50%;
-      margin: 12px auto;
-      animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    .success {
-      color: #16a34a;
-      animation: pop 0.45s ease;
-    }
-
-    .failure {
-      color: red;
-      animation: shake 0.35s;
-    }
-
-    @keyframes pop {
-      0% { transform: scale(0.6); opacity: 0; }
-      100% { transform: scale(1); opacity: 1; }
-    }
-
-    @keyframes shake {
-      0% { transform: translateX(0); }
-      25% { transform: translateX(-6px); }
-      50% { transform: translateX(6px); }
-      75% { transform: translateX(-6px); }
-      100% { transform: translateX(0); }
-    }
-  </style>
 </head>
 
 <body>
@@ -60,33 +21,26 @@
 </div>
 
 <script>
-/* =========================
-   🔐 SAFE SESSION CHECK
-========================= */
+/* ================= AUTH CHECK ================= */
 const token = localStorage.getItem("token");
 const role = localStorage.getItem("role");
-const cart = JSON.parse(localStorage.getItem("pendingCart") || "{}");
 
-// 🔐 Soft session check (DO NOT redirect immediately)
 if (!token || role !== "customer") {
-  console.warn("Session missing, will validate during checkout");
+  alert("Session expired. Please login again.");
+  location.href = "login.html";
 }
 
-
-/* =========================
-   DOM
-========================= */
+/* ================= CART ================= */
+const cart = JSON.parse(localStorage.getItem("pendingCart") || "{}");
 const summary = document.getElementById("summary");
 const totalEl = document.getElementById("total");
 const actionArea = document.getElementById("actionArea");
 
 let total = 0;
 
-/* =========================
-   LOAD SUMMARY
-========================= */
+/* ================= LOAD SUMMARY ================= */
 async function loadSummary() {
-  if (!Object.keys(cart).length) {
+  if (Object.keys(cart).length === 0) {
     summary.innerHTML = "<li>Your cart is empty</li>";
     return;
   }
@@ -96,6 +50,9 @@ async function loadSummary() {
   });
 
   const items = await res.json();
+
+  summary.innerHTML = "";
+  total = 0;
 
   Object.keys(cart).forEach(key => {
     const item = items[key];
@@ -114,55 +71,41 @@ async function loadSummary() {
 
 loadSummary();
 
-/* =========================
-   PAYMENT
-========================= */
+/* ================= PAYMENT ================= */
 async function pay() {
+  if (total === 0) {
+    alert("Cart is empty");
+    return;
+  }
+
+  actionArea.innerHTML = `<p>Processing payment...</p>`;
+
+  const res = await fetch("/checkout", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: token
+    },
+    body: JSON.stringify({ cart })
+  });
+
+  if (!res.ok) {
+    actionArea.innerHTML = `
+      <p style="color:red;">Payment failed</p>
+      <button onclick="location.reload()">Retry</button>
+    `;
+    return;
+  }
+
+  localStorage.removeItem("pendingCart");
+
   actionArea.innerHTML = `
-    <div class="loader"></div>
-    <p>Processing payment…</p>
+    <h2 style="color:green;">✅ Payment Successful</h2>
   `;
 
-  setTimeout(async () => {
-    const res = await fetch("/checkout", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: token
-      },
-      body: JSON.stringify({ cart })
-    });
-
-    if (res.status === 401) {
-  alert("⚠️ Session expired. Please login again.");
-  window.location.href = "login.html";
-  return;
-}
-
-
-    if (!res.ok) {
-      actionArea.innerHTML = `
-        <div class="failure">
-          <h2>❌ Payment Failed</h2>
-          <button onclick="location.reload()">Retry</button>
-        </div>`;
-      return;
-    }
-
-    localStorage.removeItem("pendingCart");
-
-    actionArea.innerHTML = `
-      <div class="success">
-        <div style="font-size:64px;">✔</div>
-        <h2>Payment Successful</h2>
-      </div>
-    `;
-
-    setTimeout(() => {
-      window.location.href = "customer.html";
-    }, 1800);
-
-  }, 1400);
+  setTimeout(() => {
+    location.href = "customer.html";
+  }, 1500);
 }
 </script>
 
