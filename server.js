@@ -16,6 +16,11 @@ app.use("/uploads", express.static("uploads"));
 let sessions = {};
 
 /* =========================
+   MONITORING STATE (ANTI-SPAM)
+========================= */
+const lastMonitoredStock = {};
+
+/* =========================
    UPLOADS
 ========================= */
 if (!fs.existsSync("uploads")) fs.mkdirSync("uploads");
@@ -46,7 +51,7 @@ const Item = mongoose.model("Item", new mongoose.Schema({
 }));
 
 const Order = mongoose.model("Order", new mongoose.Schema({
-  cart: Object,               // 🔧 RESTORED
+  cart: Object,
   customer: {
     fname: String,
     lname: String,
@@ -137,31 +142,30 @@ app.post("/logout", (req, res) => {
 });
 
 /* =========================
-   🔍 MONITORING AGENT (STABLE)
+   🔍 MONITORING AGENT (FIXED)
 ========================= */
 setInterval(async () => {
   const items = await Item.find();
+
   for (const i of items) {
-    if (i.stock <= 3) {
-      const exists = await Log.findOne({
+    const prev = lastMonitoredStock[i.key];
+
+    // Log ONLY when crossing from safe (>3) to danger (<=3)
+    if ((prev === undefined || prev > 3) && i.stock <= 3 && i.stock > 0) {
+      await Log.create({
         type: "monitoring",
         item: i.name,
-        stock: i.stock
+        stock: i.stock,
+        time: new Date().toLocaleString()
       });
-      if (!exists) {
-        await Log.create({
-          type: "monitoring",
-          item: i.name,
-          stock: i.stock,
-          time: new Date().toLocaleString()
-        });
-      }
     }
+
+    lastMonitoredStock[i.key] = i.stock;
   }
 }, 3000);
 
 /* =========================
-   🤖 FORECASTING AGENT (AUTO RESTOCK)
+   🤖 FORECASTING AGENT
 ========================= */
 setInterval(async () => {
   const items = await Item.find();
@@ -174,6 +178,8 @@ setInterval(async () => {
         stock: 10,
         time: new Date().toLocaleString()
       });
+
+      lastMonitoredStock[i.key] = 10; // reset state
     }
   }
 }, 5000);
@@ -212,17 +218,11 @@ app.post("/checkout", auth("customer"), async (req, res) => {
     await Item.updateOne({ key }, { $inc: { stock: -qty } });
 
     total += subtotal;
-    items.push({
-      key,
-      name: item.name,
-      price: item.price,
-      qty,
-      subtotal
-    });
+    items.push({ key, name: item.name, price: item.price, qty, subtotal });
   }
 
   await Order.create({
-    cart,                       // 🔧 RESTORED
+    cart,
     customer: {
       fname: req.user.fname,
       lname: req.user.lname,
@@ -301,22 +301,6 @@ app.delete("/admin/delete-item/:key", auth("admin"), async (req, res) => {
 app.post("/admin/reset-logs", auth("admin"), async (_, res) => {
   await Log.deleteMany({});
   await Order.deleteMany({});
-
-  const defaults = {
-    chocolates: 5,
-    biscuits: 8,
-    chips: 6,
-    juice: 7,
-    "soft-drinks": 9,
-    "canned-food": 4,
-    rice: 7,
-    salt: 10
-  };
-
-  for (const key in defaults) {
-    await Item.updateOne({ key }, { stock: defaults[key] });
-  }
-
   res.json({ ok: true });
 });
 
