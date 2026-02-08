@@ -6,7 +6,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
-    /* 🔔 TOAST CONTAINER */
+    /* 🔔 Toasts */
     #toastContainer {
       position: fixed;
       bottom: 24px;
@@ -16,7 +16,7 @@
 
     .toast {
       background: #dc2626;
-      color: white;
+      color: #fff;
       padding: 14px 18px;
       margin-top: 10px;
       border-radius: 8px;
@@ -44,7 +44,6 @@
   <button class="logout-btn" onclick="logout()">Logout</button>
 </div>
 
-<!-- 🔔 TOAST AREA -->
 <div id="toastContainer"></div>
 
 <div class="admin-container">
@@ -80,7 +79,7 @@
     <canvas id="stockChart"></canvas>
   </div>
 
-  <!-- ANALYTICS -->
+  <!-- REVENUE -->
   <div class="card">
     <h2>💰 Revenue Analytics</h2>
     <p>Total Revenue: ₹<span id="totalRevenue">0</span></p>
@@ -88,18 +87,22 @@
     <canvas id="revenueChart"></canvas>
   </div>
 
+  <!-- RESET -->
   <button class="danger-btn" onclick="resetLogs()">🧹 Reset Logs & Stocks</button>
 
+  <!-- FORECASTING -->
   <div class="card">
     <h2>🤖 Forecasting Logs</h2>
     <ul id="forecastingLogs"></ul>
   </div>
 
+  <!-- MONITORING -->
   <div class="card">
     <h2>🔍 Monitoring Logs</h2>
     <ul id="monitoringLogs"></ul>
   </div>
 
+  <!-- ORDERS -->
   <div class="card">
     <h2>🧾 Orders</h2>
     <div id="orders"></div>
@@ -108,12 +111,18 @@
 </div>
 
 <script>
+/* ================= AUTH ================= */
 const token = localStorage.getItem("token");
 const role = localStorage.getItem("role");
-if (!token || role !== "admin") location.href = "login.html";
 
+if (!token || role !== "admin") {
+  location.href = "login.html";
+}
+
+/* ================= GLOBALS ================= */
 const inventoryTable = document.getElementById("inventoryTable");
 const toastContainer = document.getElementById("toastContainer");
+const ordersDiv = document.getElementById("orders");
 
 let stockChart, revenueChart;
 let forecastToastShown = {};
@@ -137,7 +146,7 @@ function initCharts() {
 
   revenueChart = new Chart(document.getElementById("revenueChart"), {
     type: "line",
-    data: { labels: [], datasets: [{ data: [], borderColor: "#3ec6c6" }] }
+    data: { labels: [], datasets: [{ data: [], borderColor: "#3ec6c6", tension: 0.3 }] }
   });
 }
 
@@ -146,17 +155,17 @@ async function loadAdmin() {
   const res = await fetch("/admin-data", {
     headers: { Authorization: token }
   });
-  const d = await res.json();
+  const data = await res.json();
 
-  renderInventory(d.inventory);
-  renderStockChart(d.inventory);
-  renderLogs(d.monitoring, "monitoringLogs");
-  renderLogs(d.forecasting, "forecastingLogs");
+  renderInventory(data.inventory || []);
+  renderStockChart(data.inventory || []);
+  renderLogs(data.monitoring || [], "monitoringLogs");
+  renderLogs(data.forecasting || [], "forecastingLogs");
 
-  // 🔔 Forecasting toast ONLY (stock hit 0)
-  d.forecasting.forEach(log => {
+  // 🔔 Toast ONLY for forecasting (stock hit 0)
+  (data.forecasting || []).forEach(log => {
     if (!forecastToastShown[log.item]) {
-      showToast(`${log.item} was OUT OF STOCK. Auto-restocked.`);
+      showToast(`${log.item} was OUT OF STOCK & auto-restocked`);
       forecastToastShown[log.item] = true;
     }
   });
@@ -169,16 +178,23 @@ function renderInventory(items) {
     inventoryTable.innerHTML += `
       <tr>
         <td>${i.name}</td>
-        <td><input type="number" value="${i.stock}"
-          onblur="updateStock('${i.key}', this.value)"></td>
-        <td><input type="number" value="${i.price}"
-          onblur="updatePrice('${i.key}', this.value)"></td>
-        <td><button class="delete-btn" onclick="deleteItem('${i.key}')">✖</button></td>
-      </tr>`;
+        <td>
+          <input type="number" value="${i.stock}"
+            onblur="updateStock('${i.key}', this.value)">
+        </td>
+        <td>
+          <input type="number" value="${i.price}"
+            onblur="updatePrice('${i.key}', this.value)">
+        </td>
+        <td>
+          <button class="delete-btn" onclick="deleteItem('${i.key}')">✖</button>
+        </td>
+      </tr>
+    `;
   });
 }
 
-/* ================= GRAPH ================= */
+/* ================= STOCK GRAPH ================= */
 function renderStockChart(items) {
   stockChart.data.labels = items.map(i => i.name);
   stockChart.data.datasets[0].data = items.map(i => i.stock);
@@ -192,9 +208,44 @@ function renderLogs(logs, id) {
   document.getElementById(id).innerHTML =
     logs.length
       ? logs.map(l =>
-        `<li>${l.item} → ${l.stock}<br><small>${l.time}</small></li>`
-      ).join("")
+          `<li><b>${l.item}</b> → ${l.stock}<br><small>${l.time}</small></li>`
+        ).join("")
       : "<li>No logs</li>";
+}
+
+/* ================= ORDERS ================= */
+async function loadOrders() {
+  const res = await fetch("/admin/orders", {
+    headers: { Authorization: token }
+  });
+  const orders = await res.json();
+
+  ordersDiv.innerHTML = orders.length ? "" : "<p>No orders yet</p>";
+
+  orders.forEach(o => {
+    ordersDiv.innerHTML += `
+      <div style="margin-bottom:12px;">
+        <b>${o.customer.email}</b><br>
+        Total: ₹${o.totalAmount}<br>
+        <small>${o.time}</small>
+      </div>
+    `;
+  });
+}
+
+/* ================= ANALYTICS ================= */
+async function loadAnalytics() {
+  const res = await fetch("/admin/analytics", {
+    headers: { Authorization: token }
+  });
+  const d = await res.json();
+
+  totalRevenue.innerText = d.totalRevenue || 0;
+  totalOrders.innerText = d.totalOrders || 0;
+
+  revenueChart.data.labels = d.dailyRevenue.map(x => x.date);
+  revenueChart.data.datasets[0].data = d.dailyRevenue.map(x => x.revenue);
+  revenueChart.update();
 }
 
 /* ================= ACTIONS ================= */
@@ -235,7 +286,7 @@ async function deleteItem(key) {
 
 async function resetLogs() {
   const ok = confirm(
-    "⚠️ This will:\n\n• Reset ALL inventory stocks\n• Delete ALL orders\n• Clear ALL logs\n\nDo you want to continue?"
+    "⚠️ This will reset ALL stocks, orders & logs.\n\nContinue?"
   );
   if (!ok) return;
 
@@ -246,6 +297,8 @@ async function resetLogs() {
 
   forecastToastShown = {};
   loadAdmin();
+  loadOrders();
+  loadAnalytics();
 }
 
 async function logout() {
@@ -261,7 +314,12 @@ async function logout() {
 /* ================= START ================= */
 initCharts();
 loadAdmin();
+loadOrders();
+loadAnalytics();
+
 setInterval(loadAdmin, 3000);
+setInterval(loadOrders, 5000);
+setInterval(loadAnalytics, 5000);
 </script>
 
 </body>
