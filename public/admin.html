@@ -6,16 +6,33 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
-    /* 🔴 STOCK ALERT BANNER */
-    #stockAlert {
-      display: none;
-      background: #fee2e2;
-      color: #991b1b;
-      border: 1px solid #ef4444;
-      padding: 12px 18px;
+    /* 🔔 TOAST CONTAINER */
+    #toastContainer {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 9999;
+    }
+
+    .toast {
+      background: #dc2626;
+      color: white;
+      padding: 14px 18px;
+      margin-top: 10px;
       border-radius: 8px;
-      margin: 12px 40px;
       font-weight: bold;
+      min-width: 260px;
+      animation: slideIn 0.3s ease, fadeOut 0.3s ease 2.2s forwards;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    }
+
+    @keyframes slideIn {
+      from { transform: translateX(120%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    @keyframes fadeOut {
+      to { opacity: 0; transform: translateX(120%); }
     }
   </style>
 </head>
@@ -27,8 +44,8 @@
   <button class="logout-btn" onclick="logout()">Logout</button>
 </div>
 
-<!-- 🔴 LIVE STOCK ALERT -->
-<div id="stockAlert"></div>
+<!-- 🔔 TOAST AREA -->
+<div id="toastContainer"></div>
 
 <div class="admin-container">
 
@@ -37,7 +54,7 @@
     <h2>➕ Add Item</h2>
     <input id="itemName" placeholder="Item name">
     <input id="itemStock" type="number" placeholder="Initial stock">
-    <input id="itemPrice" type="number" placeholder="Price" min="0">
+    <input id="itemPrice" type="number" placeholder="Price">
     <button onclick="addItem()">Add Item</button>
   </div>
 
@@ -60,34 +77,31 @@
   <!-- STOCK GRAPH -->
   <div class="card">
     <h2>📈 Stock Graph</h2>
-    <canvas id="stockChart" height="220"></canvas>
+    <canvas id="stockChart"></canvas>
   </div>
 
-  <!-- REVENUE -->
+  <!-- ANALYTICS -->
   <div class="card">
     <h2>💰 Revenue Analytics</h2>
-    <p><b>Total Revenue:</b> ₹<span id="totalRevenue">0</span></p>
-    <p><b>Total Orders:</b> <span id="totalOrders">0</span></p>
-    <canvas id="revenueChart" height="220"></canvas>
+    <p>Total Revenue: ₹<span id="totalRevenue">0</span></p>
+    <p>Total Orders: <span id="totalOrders">0</span></p>
+    <canvas id="revenueChart"></canvas>
   </div>
 
   <button class="danger-btn" onclick="resetLogs()">🧹 Reset Logs & Stocks</button>
 
-  <!-- FORECASTING -->
   <div class="card">
     <h2>🤖 Forecasting Logs</h2>
     <ul id="forecastingLogs"></ul>
   </div>
 
-  <!-- MONITORING -->
   <div class="card">
     <h2>🔍 Monitoring Logs</h2>
     <ul id="monitoringLogs"></ul>
   </div>
 
-  <!-- ORDERS -->
   <div class="card">
-    <h2>🧾 Orders & Bills</h2>
+    <h2>🧾 Orders</h2>
     <div id="orders"></div>
   </div>
 
@@ -96,15 +110,21 @@
 <script>
 const token = localStorage.getItem("token");
 const role = localStorage.getItem("role");
-
 if (!token || role !== "admin") location.href = "login.html";
 
 const inventoryTable = document.getElementById("inventoryTable");
-const ordersDiv = document.getElementById("orders");
-const alertBox = document.getElementById("stockAlert");
+const toastContainer = document.getElementById("toastContainer");
 
 let stockChart, revenueChart;
-let isEditing = false;
+
+/* ================= TOAST ================= */
+function showToast(msg) {
+  const t = document.createElement("div");
+  t.className = "toast";
+  t.innerHTML = `⚠️ ${msg}`;
+  toastContainer.appendChild(t);
+  setTimeout(() => t.remove(), 2500);
+}
 
 /* ================= CHARTS ================= */
 function initCharts() {
@@ -116,42 +136,25 @@ function initCharts() {
 
   revenueChart = new Chart(document.getElementById("revenueChart"), {
     type: "line",
-    data: { labels: [], datasets: [{ data: [], borderColor: "#3ec6c6", tension: 0.3 }] }
+    data: { labels: [], datasets: [{ data: [], borderColor: "#3ec6c6" }] }
   });
 }
 
 /* ================= LOAD ADMIN ================= */
 async function loadAdmin() {
-  if (isEditing) return;
-
   const res = await fetch("/admin-data", { headers: { Authorization: token }});
-  const data = await res.json();
+  const d = await res.json();
 
-  renderInventory(data.inventory || []);
-  renderStockChart(data.inventory || []);
-  renderLogs(data.forecasting || [], "forecastingLogs");
-  renderLogs(data.monitoring || [], "monitoringLogs");
-  renderStockAlerts(data.inventory || []);
-}
+  renderInventory(d.inventory);
+  renderStockChart(d.inventory);
+  renderLogs(d.monitoring, "monitoringLogs");
+  renderLogs(d.forecasting, "forecastingLogs");
 
-/* ================= ALERT BANNER ================= */
-function renderStockAlerts(items) {
-  const danger = items.filter(i => i.stock <= 3);
-
-  if (!danger.length) {
-    alertBox.style.display = "none";
-    return;
-  }
-
-  alertBox.style.display = "block";
-  alertBox.innerHTML = `
-    ⚠️ <u>Low / Out of Stock Items</u><br>
-    ${danger.map(i =>
-      i.stock === 0
-        ? `🔴 ${i.name} is <b>OUT OF STOCK</b>`
-        : `🟠 ${i.name} is LOW (${i.stock})`
-    ).join("<br>")}
-  `;
+  d.inventory.forEach(i => {
+    if (i.stock <= 3) {
+      showToast(`${i.name} is LOW (${i.stock})`);
+    }
+  });
 }
 
 /* ================= INVENTORY ================= */
@@ -161,76 +164,47 @@ function renderInventory(items) {
     inventoryTable.innerHTML += `
       <tr>
         <td>${i.name}</td>
-        <td><input type="number" value="${i.stock}" onfocus="isEditing=true"
-          onblur="saveStock('${i.key}', this.value)"></td>
-        <td><input type="number" value="${i.price ?? 0}" onfocus="isEditing=true"
-          onblur="savePrice('${i.key}', this.value)"></td>
+        <td><input value="${i.stock}" type="number"
+          onblur="updateStock('${i.key}', this.value)"></td>
+        <td><input value="${i.price}" type="number"
+          onblur="updatePrice('${i.key}', this.value)"></td>
         <td><button class="delete-btn" onclick="deleteItem('${i.key}')">✖</button></td>
       </tr>`;
   });
 }
 
-/* ================= STOCK GRAPH ================= */
+/* ================= GRAPH ================= */
 function renderStockChart(items) {
   stockChart.data.labels = items.map(i => i.name);
   stockChart.data.datasets[0].data = items.map(i => i.stock);
   stockChart.data.datasets[0].backgroundColor =
-    items.map(i => i.stock <= 3 ? "#ef4444" : "#60a5fa");
+    items.map(i => i.stock <= 3 ? "#dc2626" : "#60a5fa");
   stockChart.update();
 }
 
-/* ================= LOGS ================= */
+/* ================= HELPERS ================= */
 function renderLogs(logs, id) {
   document.getElementById(id).innerHTML =
-    logs.length
-      ? logs.map(l => `<li><b>${l.item}</b> → ${l.stock}<br><small>${l.time}</small></li>`).join("")
-      : "<li>No logs yet</li>";
-}
-
-/* ================= ORDERS ================= */
-async function loadOrders() {
-  const res = await fetch("/admin/orders", { headers: { Authorization: token }});
-  const orders = await res.json();
-  ordersDiv.innerHTML = orders.length ? "" : "<p>No orders yet</p>";
-
-  orders.forEach(o => {
-    ordersDiv.innerHTML += `
-      <div style="border:1px solid #ddd;padding:12px;margin-bottom:12px;">
-        <b>${o.customer.fname} ${o.customer.lname}</b><br>
-        <small>${o.customer.email}</small><br>
-        <small>${o.time}</small>
-      </div>`;
-  });
-}
-
-/* ================= ANALYTICS ================= */
-async function loadAnalytics() {
-  const res = await fetch("/admin/analytics", { headers: { Authorization: token }});
-  const d = await res.json();
-  totalRevenue.innerText = d.totalRevenue || 0;
-  totalOrders.innerText = d.totalOrders || 0;
-  revenueChart.data.labels = d.dailyRevenue.map(x => x.date);
-  revenueChart.data.datasets[0].data = d.dailyRevenue.map(x => x.revenue);
-  revenueChart.update();
+    logs.length ? logs.map(l =>
+      `<li>${l.item} → ${l.stock}<br><small>${l.time}</small></li>`
+    ).join("") : "<li>No logs</li>";
 }
 
 /* ================= ACTIONS ================= */
-async function saveStock(key, stock) {
+async function updateStock(key, stock) {
   await fetch("/admin/update-stock", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: token },
     body: JSON.stringify({ key, stock: Number(stock) })
   });
-  isEditing = false;
 }
 
-async function savePrice(key, price) {
+async function updatePrice(key, price) {
   await fetch("/admin/update-price", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: token },
     body: JSON.stringify({ key, price: Number(price) })
   });
-  isEditing = false;
 }
 
 async function addItem() {
@@ -243,7 +217,6 @@ async function addItem() {
       price: Number(itemPrice.value)
     })
   });
-  itemName.value = itemStock.value = itemPrice.value = "";
 }
 
 async function deleteItem(key) {
@@ -254,8 +227,10 @@ async function deleteItem(key) {
 }
 
 async function resetLogs() {
-  if (!confirm("Reset everything?")) return;
-  await fetch("/admin/reset-logs", { method: "POST", headers: { Authorization: token }});
+  await fetch("/admin/reset-logs", {
+    method: "POST",
+    headers: { Authorization: token }
+  });
 }
 
 async function logout() {
@@ -271,12 +246,7 @@ async function logout() {
 /* ================= START ================= */
 initCharts();
 loadAdmin();
-loadOrders();
-loadAnalytics();
-
-setInterval(loadAdmin, 3000);   // 🔁 continuous alerts
-setInterval(loadOrders, 4000);
-setInterval(loadAnalytics, 5000);
+setInterval(loadAdmin, 3000);
 </script>
 
 </body>
