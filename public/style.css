@@ -323,3 +323,9 @@ th, td {
     font-size: 14px;
   }
 }
+
+@media (max-width: 768px) {
+  #desktopCheckout {
+    display: none;
+  }
+}

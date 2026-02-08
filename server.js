@@ -42,12 +42,16 @@ const Item = mongoose.model("Item", new mongoose.Schema({
   key: String,
   name: String,
   stock: Number,
-  price: Number
+  price: { type: Number, default: 0 }   // ✅ FIX 1
 }));
 
 const Order = mongoose.model("Order", new mongoose.Schema({
   cart: Object,
-  customer: Object,
+  customer: {
+    fname: String,
+    lname: String,
+    email: String
+  },
   items: Array,
   totalAmount: Number,
   paymentStatus: String,
@@ -113,6 +117,7 @@ app.post("/login", async (req, res) => {
     password: req.body.password
   });
   if (!user) return res.status(401).json({ message: "Invalid credentials" });
+
   const token = Date.now().toString();
   sessions[token] = user;
   res.json({ token, role: user.role });
@@ -124,7 +129,7 @@ app.post("/logout", (req, res) => {
 });
 
 /* =========================
-   MONITORING
+   🔍 MONITORING AGENT
 ========================= */
 setInterval(async () => {
   const items = await Item.find();
@@ -141,7 +146,7 @@ setInterval(async () => {
 }, 3000);
 
 /* =========================
-   FORECASTING
+   🤖 FORECASTING AGENT
 ========================= */
 setInterval(async () => {
   const items = await Item.find();
@@ -186,8 +191,10 @@ app.post("/checkout", auth("customer"), async (req, res) => {
   for (const key in req.body.cart) {
     const item = await Item.findOne({ key });
     const qty = Math.min(req.body.cart[key], item.stock);
+
     total += qty * item.price;
     await Item.updateOne({ key }, { $inc: { stock: -qty } });
+
     items.push({
       key,
       name: item.name,
@@ -198,7 +205,11 @@ app.post("/checkout", auth("customer"), async (req, res) => {
   }
 
   await Order.create({
-    customer: req.user,
+    customer: {
+      fname: req.user.fname,
+      lname: req.user.lname,
+      email: req.user.email
+    },
     items,
     totalAmount: total,
     paymentStatus: "PAID",
@@ -211,11 +222,11 @@ app.post("/checkout", auth("customer"), async (req, res) => {
 /* =========================
    ADMIN ROUTES
 ========================= */
-app.get("/admin-data", auth("admin"), async (req, res) => {
+app.get("/admin-data", auth("admin"), async (_, res) => {
   res.json({
     inventory: await Item.find(),
-    monitoring: await Log.find({ type: "monitoring" }),
-    forecasting: await Log.find({ type: "forecasting" })
+    monitoring: await Log.find({ type: "monitoring" }).sort({ _id: -1 }),
+    forecasting: await Log.find({ type: "forecasting" }).sort({ _id: -1 })
   });
 });
 
@@ -227,15 +238,20 @@ app.get("/admin/analytics", auth("admin"), async (_, res) => {
   const orders = await Order.find({ paymentStatus: "PAID" });
   let totalRevenue = 0;
   const map = {};
+
   orders.forEach(o => {
     totalRevenue += o.totalAmount;
     const d = o.time.split(",")[0];
     map[d] = (map[d] || 0) + o.totalAmount;
   });
+
   res.json({
     totalRevenue,
     totalOrders: orders.length,
-    dailyRevenue: Object.keys(map).map(d => ({ date: d, revenue: map[d] }))
+    dailyRevenue: Object.keys(map).map(d => ({
+      date: d,
+      revenue: map[d]
+    }))
   });
 });
 
@@ -278,4 +294,5 @@ mongoose
   .then(async () => {
     await init();
     app.listen(process.env.PORT || 3000);
+    console.log("🚀 Server running");
   });
