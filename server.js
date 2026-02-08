@@ -129,10 +129,12 @@ app.post("/login", async (req, res) => {
     email: req.body.username,
     password: req.body.password
   });
+
   if (!user) return res.status(401).json({ message: "Invalid credentials" });
 
   const token = Date.now().toString();
   sessions[token] = user;
+
   res.json({ token, role: user.role });
 });
 
@@ -142,7 +144,7 @@ app.post("/logout", (req, res) => {
 });
 
 /* =========================
-   🔍 MONITORING AGENT (FIXED)
+   🔍 MONITORING AGENT
 ========================= */
 setInterval(async () => {
   const items = await Item.find();
@@ -150,7 +152,6 @@ setInterval(async () => {
   for (const i of items) {
     const prev = lastMonitoredStock[i.key];
 
-    // Log ONLY when crossing from safe (>3) to danger (<=3)
     if ((prev === undefined || prev > 3) && i.stock <= 3 && i.stock > 0) {
       await Log.create({
         type: "monitoring",
@@ -169,9 +170,11 @@ setInterval(async () => {
 ========================= */
 setInterval(async () => {
   const items = await Item.find();
+
   for (const i of items) {
     if (i.stock === 0) {
       await Item.updateOne({ key: i.key }, { $inc: { stock: 10 } });
+
       await Log.create({
         type: "forecasting",
         item: i.name,
@@ -179,7 +182,7 @@ setInterval(async () => {
         time: new Date().toLocaleString()
       });
 
-      lastMonitoredStock[i.key] = 10; // reset state
+      lastMonitoredStock[i.key] = 10;
     }
   }
 }, 5000);
@@ -190,6 +193,7 @@ setInterval(async () => {
 app.get("/shop-items", auth("customer"), async (_, res) => {
   const items = await Item.find();
   const out = {};
+
   items.forEach(i => {
     out[i.key] = {
       name: i.name,
@@ -199,6 +203,7 @@ app.get("/shop-items", auth("customer"), async (_, res) => {
       warning: i.stock <= 3 ? i.stock : null
     };
   });
+
   res.json(out);
 });
 

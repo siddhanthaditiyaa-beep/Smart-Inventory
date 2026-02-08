@@ -46,7 +46,7 @@
     <canvas id="stockChart" height="220"></canvas>
   </div>
 
-  <!-- REVENUE ANALYTICS -->
+  <!-- REVENUE -->
   <div class="card">
     <h2>💰 Revenue Analytics</h2>
     <p><b>Total Revenue:</b> ₹<span id="totalRevenue">0</span></p>
@@ -56,13 +56,13 @@
 
   <button class="danger-btn" onclick="resetLogs()">🧹 Reset Logs & Stocks</button>
 
-  <!-- FORECASTING LOGS -->
+  <!-- FORECASTING -->
   <div class="card">
     <h2>🤖 Forecasting Logs</h2>
     <ul id="forecastingLogs"></ul>
   </div>
 
-  <!-- MONITORING LOGS -->
+  <!-- MONITORING -->
   <div class="card">
     <h2>🔍 Monitoring Logs</h2>
     <ul id="monitoringLogs"></ul>
@@ -80,28 +80,36 @@
 const token = localStorage.getItem("token");
 const role = localStorage.getItem("role");
 
-if (!token || role !== "admin") {
-  location.href = "login.html";
-}
+if (!token || role !== "admin") location.href = "login.html";
 
 const inventoryTable = document.getElementById("inventoryTable");
 const ordersDiv = document.getElementById("orders");
 
-let stockChart = null;
-let revenueChart = null;
+let stockChart, revenueChart;
 let isEditing = false;
+
+/* ================= ALERT MEMORY ================= */
+let zeroStockAlerted = JSON.parse(localStorage.getItem("zeroStockAlerted") || "{}");
 
 /* ================= INIT CHARTS ================= */
 function initCharts() {
-  const stockCtx = document.getElementById("stockChart");
-  const revenueCtx = document.getElementById("revenueChart");
-
-  stockChart = new Chart(stockCtx, {
+  stockChart = new Chart(document.getElementById("stockChart"), {
     type: "bar",
-    data: { labels: [], datasets: [{ label: "Stock", data: [] }] }
+    data: {
+      labels: [],
+      datasets: [{
+        label: "Stock",
+        data: [],
+        backgroundColor: []
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } }
+    }
   });
 
-  revenueChart = new Chart(revenueCtx, {
+  revenueChart = new Chart(document.getElementById("revenueChart"), {
     type: "line",
     data: {
       labels: [],
@@ -119,36 +127,32 @@ function initCharts() {
 async function loadAdmin() {
   if (isEditing) return;
 
-  try {
-    const res = await fetch("/admin-data", {
-      headers: { Authorization: token }
-    });
-    const data = await res.json();
+  const res = await fetch("/admin-data", {
+    headers: { Authorization: token }
+  });
+  const data = await res.json();
 
-    renderInventory(data.inventory || []);
-    renderLogs(data.forecasting || [], "forecastingLogs");
-    renderLogs(data.monitoring || [], "monitoringLogs");
-    renderStockChart(data.inventory || []);
-  } catch (err) {
-    console.error("Admin data error:", err);
-  }
+  renderInventory(data.inventory || []);
+  renderLogs(data.forecasting || [], "forecastingLogs");
+  renderLogs(data.monitoring || [], "monitoringLogs");
+  renderStockChart(data.inventory || []);
+  checkZeroStockAlerts(data.inventory || []);
 }
 
 /* ================= INVENTORY ================= */
 function renderInventory(items) {
   inventoryTable.innerHTML = "";
-
   items.forEach(i => {
     inventoryTable.innerHTML += `
       <tr>
         <td>${i.name}</td>
         <td>
-          <input type="number" value="${i.stock}" min="0"
+          <input type="number" value="${i.stock}"
             onfocus="isEditing=true"
             onblur="saveStock('${i.key}', this.value)">
         </td>
         <td>
-          <input type="number" value="${i.price ?? 0}" min="0"
+          <input type="number" value="${i.price ?? 0}"
             onfocus="isEditing=true"
             onblur="savePrice('${i.key}', this.value)">
         </td>
@@ -159,6 +163,79 @@ function renderInventory(items) {
   });
 }
 
+/* ================= STOCK GRAPH ================= */
+function renderStockChart(items) {
+  stockChart.data.labels = items.map(i => i.name);
+  stockChart.data.datasets[0].data = items.map(i => i.stock);
+  stockChart.data.datasets[0].backgroundColor =
+    items.map(i => i.stock <= 3 ? "#ef4444" : "#60a5fa");
+  stockChart.update();
+}
+
+/* ================= ZERO STOCK POPUP ================= */
+function checkZeroStockAlerts(items) {
+  items.forEach(i => {
+    if (i.stock === 0 && !zeroStockAlerted[i.key]) {
+      alert(`⚠️ STOCK ALERT\n\n${i.name} is OUT OF STOCK!`);
+      zeroStockAlerted[i.key] = true;
+    }
+
+    if (i.stock > 0 && zeroStockAlerted[i.key]) {
+      delete zeroStockAlerted[i.key];
+    }
+  });
+
+  localStorage.setItem("zeroStockAlerted", JSON.stringify(zeroStockAlerted));
+}
+
+/* ================= LOGS ================= */
+function renderLogs(logs, id) {
+  const el = document.getElementById(id);
+  el.innerHTML = logs.length
+    ? logs.map(l => `<li><b>${l.item}</b> → ${l.stock}<br><small>${l.time}</small></li>`).join("")
+    : "<li>No logs yet</li>";
+}
+
+/* ================= ORDERS ================= */
+async function loadOrders() {
+  const res = await fetch("/admin/orders", {
+    headers: { Authorization: token }
+  });
+  const orders = await res.json();
+
+  ordersDiv.innerHTML = orders.length ? "" : "<p>No orders yet</p>";
+
+  orders.forEach(o => {
+    ordersDiv.innerHTML += `
+      <div style="border:1px solid #ddd;padding:12px;margin-bottom:12px;">
+        <b>${o.customer.fname} ${o.customer.lname}</b><br>
+        <small>${o.customer.email}</small><br>
+        <small>${o.time}</small><br><br>
+        <ul>
+          ${o.items.map(i => `<li>${i.name} × ${i.qty} = ₹${i.subtotal}</li>`).join("")}
+        </ul>
+        <b>Total: ₹${o.totalAmount}</b><br>
+        <b>Status:</b> ${o.paymentStatus}
+      </div>`;
+  });
+}
+
+/* ================= ANALYTICS ================= */
+async function loadAnalytics() {
+  const res = await fetch("/admin/analytics", {
+    headers: { Authorization: token }
+  });
+  const data = await res.json();
+
+  totalRevenue.innerText = data.totalRevenue || 0;
+  totalOrders.innerText = data.totalOrders || 0;
+
+  revenueChart.data.labels = data.dailyRevenue.map(d => d.date);
+  revenueChart.data.datasets[0].data = data.dailyRevenue.map(d => d.revenue);
+  revenueChart.update();
+}
+
+/* ================= ACTIONS ================= */
 async function saveStock(key, stock) {
   await fetch("/admin/update-stock", {
     method: "POST",
@@ -179,83 +256,16 @@ async function savePrice(key, price) {
   loadAdmin();
 }
 
-/* ================= LOGS ================= */
-function renderLogs(logs, id) {
-  const el = document.getElementById(id);
-  el.innerHTML = logs.length
-    ? logs.map(l => `<li><b>${l.item}</b> → ${l.stock}<br><small>${l.time}</small></li>`).join("")
-    : "<li>No logs yet</li>";
-}
-
-/* ================= STOCK CHART ================= */
-function renderStockChart(items) {
-  stockChart.data.labels = items.map(i => i.name);
-  stockChart.data.datasets[0].data = items.map(i => i.stock);
-  stockChart.update();
-}
-
-/* ================= ORDERS ================= */
-async function loadOrders() {
-  try {
-    const res = await fetch("/admin/orders", {
-      headers: { Authorization: token }
-    });
-    const orders = await res.json();
-
-    ordersDiv.innerHTML = orders.length ? "" : "<p>No orders yet</p>";
-
-    orders.forEach(o => {
-      ordersDiv.innerHTML += `
-        <div style="border:1px solid #ddd;padding:12px;margin-bottom:12px;">
-          <b>${o.customer.fname} ${o.customer.lname}</b><br>
-          <small>${o.customer.email}</small><br>
-          <small>${o.time}</small><br><br>
-          <ul>
-            ${o.items.map(i => `<li>${i.name} × ${i.qty} = ₹${i.subtotal}</li>`).join("")}
-          </ul>
-          <b>Total: ₹${o.totalAmount}</b><br>
-          <b>Status:</b> ${o.paymentStatus}<br><br>
-          <a href="/admin/invoice/${o._id}" target="_blank">
-            <button>⬇ Invoice</button>
-          </a>
-        </div>`;
-    });
-  } catch (err) {
-    console.error("Orders error:", err);
-  }
-}
-
-/* ================= ANALYTICS ================= */
-async function loadAnalytics() {
-  try {
-    const res = await fetch("/admin/analytics", {
-      headers: { Authorization: token }
-    });
-    const data = await res.json();
-
-    totalRevenue.innerText = data.totalRevenue || 0;
-    totalOrders.innerText = data.totalOrders || 0;
-
-    revenueChart.data.labels = data.dailyRevenue.map(d => d.date);
-    revenueChart.data.datasets[0].data = data.dailyRevenue.map(d => d.revenue);
-    revenueChart.update();
-  } catch (err) {
-    console.error("Analytics error:", err);
-  }
-}
-
-/* ================= ADD / DELETE ================= */
 async function addItem() {
   await fetch("/admin/add-item", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: token },
     body: JSON.stringify({
-      name: itemName.value.trim(),
+      name: itemName.value,
       stock: Number(itemStock.value),
       price: Number(itemPrice.value)
     })
   });
-
   itemName.value = itemStock.value = itemPrice.value = "";
   loadAdmin();
 }
@@ -268,21 +278,16 @@ async function deleteItem(key) {
   loadAdmin();
 }
 
-/* ================= RESET ================= */
 async function resetLogs() {
-  if (!confirm("Clear logs, orders & reset stocks?")) return;
-
+  if (!confirm("Reset everything?")) return;
   await fetch("/admin/reset-logs", {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: token }
+    headers: { Authorization: token }
   });
-
-  loadAdmin();
-  loadOrders();
-  loadAnalytics();
+  localStorage.removeItem("zeroStockAlerted");
+  loadAdmin(); loadOrders(); loadAnalytics();
 }
 
-/* ================= LOGOUT ================= */
 async function logout() {
   await fetch("/logout", {
     method: "POST",
