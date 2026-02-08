@@ -342,3 +342,14 @@ mongoose
     app.listen(process.env.PORT || 3000);
     console.log("🚀 Server running");
   });
+
+  /* =========================
+   CUSTOMER ORDERS
+========================= */
+app.get("/customer/orders", auth("customer"), async (req, res) => {
+  const orders = await Order.find({
+    "customer.email": req.user.email
+  }).sort({ _id: -1 });
+
+  res.json(orders);
+});
