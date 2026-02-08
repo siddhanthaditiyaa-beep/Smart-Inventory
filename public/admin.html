@@ -80,27 +80,58 @@
 const token = localStorage.getItem("token");
 const role = localStorage.getItem("role");
 
-if (!token || role !== "admin") location.href = "login.html";
+if (!token || role !== "admin") {
+  location.href = "login.html";
+}
 
 const inventoryTable = document.getElementById("inventoryTable");
 const ordersDiv = document.getElementById("orders");
 
-let stockChart, revenueChart;
+let stockChart = null;
+let revenueChart = null;
 let isEditing = false;
+
+/* ================= INIT CHARTS ================= */
+function initCharts() {
+  const stockCtx = document.getElementById("stockChart");
+  const revenueCtx = document.getElementById("revenueChart");
+
+  stockChart = new Chart(stockCtx, {
+    type: "bar",
+    data: { labels: [], datasets: [{ label: "Stock", data: [] }] }
+  });
+
+  revenueChart = new Chart(revenueCtx, {
+    type: "line",
+    data: {
+      labels: [],
+      datasets: [{
+        label: "Revenue",
+        data: [],
+        borderColor: "#3ec6c6",
+        tension: 0.3
+      }]
+    }
+  });
+}
 
 /* ================= LOAD ADMIN ================= */
 async function loadAdmin() {
   if (isEditing) return;
 
-  const res = await fetch("/admin-data", {
-    headers: { Authorization: token }
-  });
-  const data = await res.json();
+  try {
+    const res = await fetch("/admin-data", {
+      headers: { Authorization: token }
+    });
+    const data = await res.json();
 
-  renderInventory(data.inventory);
-  renderLogs(data.forecasting, "forecastingLogs");
-  renderLogs(data.monitoring, "monitoringLogs");
-  renderStockChart(data.inventory);
+    renderInventory(data.inventory || []);
+    renderLogs(data.forecasting || [], "forecastingLogs");
+    renderLogs(data.monitoring || [], "monitoringLogs");
+    renderStockChart(data.inventory || []);
+  } catch (err) {
+    console.error("Admin data error:", err);
+  }
 }
 
 /* ================= INVENTORY ================= */
@@ -113,61 +144,46 @@ function renderInventory(items) {
         <td>${i.name}</td>
         <td>
           <input type="number" value="${i.stock}" min="0"
-            onfocus="pauseRefresh()"
+            onfocus="isEditing=true"
             onblur="saveStock('${i.key}', this.value)">
         </td>
         <td>
           <input type="number" value="${i.price ?? 0}" min="0"
-            onfocus="pauseRefresh()"
+            onfocus="isEditing=true"
             onblur="savePrice('${i.key}', this.value)">
         </td>
         <td>
           <button class="delete-btn" onclick="deleteItem('${i.key}')">✖</button>
         </td>
-      </tr>
-    `;
+      </tr>`;
   });
-}
-
-function pauseRefresh() { isEditing = true; }
-function resumeRefresh() {
-  isEditing = false;
-  loadAdmin();
-  loadOrders();
-  loadAnalytics();
 }
 
 async function saveStock(key, stock) {
   await fetch("/admin/update-stock", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: token
-    },
+    headers: { "Content-Type": "application/json", Authorization: token },
     body: JSON.stringify({ key, stock: Number(stock) })
   });
-  resumeRefresh();
+  isEditing = false;
+  loadAdmin();
 }
 
 async function savePrice(key, price) {
   await fetch("/admin/update-price", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: token
-    },
+    headers: { "Content-Type": "application/json", Authorization: token },
     body: JSON.stringify({ key, price: Number(price) })
   });
-  resumeRefresh();
+  isEditing = false;
+  loadAdmin();
 }
 
 /* ================= LOGS ================= */
 function renderLogs(logs, id) {
   const el = document.getElementById(id);
   el.innerHTML = logs.length
-    ? logs.map(l =>
-        `<li><b>${l.item}</b> → ${l.stock}<br><small>${l.time}</small></li>`
-      ).join("")
+    ? logs.map(l => `<li><b>${l.item}</b> → ${l.stock}<br><small>${l.time}</small></li>`).join("")
     : "<li>No logs yet</li>";
 }
 
@@ -180,62 +196,59 @@ function renderStockChart(items) {
 
 /* ================= ORDERS ================= */
 async function loadOrders() {
-  if (isEditing) return;
+  try {
+    const res = await fetch("/admin/orders", {
+      headers: { Authorization: token }
+    });
+    const orders = await res.json();
 
-  const res = await fetch("/admin/orders", {
-    headers: { Authorization: token }
-  });
-  const orders = await res.json();
+    ordersDiv.innerHTML = orders.length ? "" : "<p>No orders yet</p>";
 
-  ordersDiv.innerHTML = orders.length ? "" : "<p>No orders yet</p>";
-
-  orders.forEach(o => {
-    ordersDiv.innerHTML += `
-      <div style="border:1px solid #ddd;padding:12px;margin-bottom:12px;">
-        <b>${o.customer.fname} ${o.customer.lname}</b><br>
-        <small>${o.customer.email}</small><br>
-        <small>${o.time}</small><br><br>
-
-        <ul>
-          ${o.items.map(i =>
-            `<li>${i.name} × ${i.qty} = ₹${i.subtotal}</li>`
-          ).join("")}
-        </ul>
-
-        <b>Total: ₹${o.totalAmount}</b><br>
-        <b>Status:</b> ${o.paymentStatus}<br><br>
-
-        <a href="/admin/invoice/${o._id}" target="_blank">
-          <button>⬇ Invoice</button>
-        </a>
-      </div>
-    `;
-  });
+    orders.forEach(o => {
+      ordersDiv.innerHTML += `
+        <div style="border:1px solid #ddd;padding:12px;margin-bottom:12px;">
+          <b>${o.customer.fname} ${o.customer.lname}</b><br>
+          <small>${o.customer.email}</small><br>
+          <small>${o.time}</small><br><br>
+          <ul>
+            ${o.items.map(i => `<li>${i.name} × ${i.qty} = ₹${i.subtotal}</li>`).join("")}
+          </ul>
+          <b>Total: ₹${o.totalAmount}</b><br>
+          <b>Status:</b> ${o.paymentStatus}<br><br>
+          <a href="/admin/invoice/${o._id}" target="_blank">
+            <button>⬇ Invoice</button>
+          </a>
+        </div>`;
+    });
+  } catch (err) {
+    console.error("Orders error:", err);
+  }
 }
 
 /* ================= ANALYTICS ================= */
 async function loadAnalytics() {
-  const res = await fetch("/admin/analytics", {
-    headers: { Authorization: token }
-  });
-  const data = await res.json();
+  try {
+    const res = await fetch("/admin/analytics", {
+      headers: { Authorization: token }
+    });
+    const data = await res.json();
 
-  document.getElementById("totalRevenue").innerText = data.totalRevenue;
-  document.getElementById("totalOrders").innerText = data.totalOrders;
+    totalRevenue.innerText = data.totalRevenue || 0;
+    totalOrders.innerText = data.totalOrders || 0;
 
-  revenueChart.data.labels = data.dailyRevenue.map(d => d.date);
-  revenueChart.data.datasets[0].data = data.dailyRevenue.map(d => d.revenue);
-  revenueChart.update();
+    revenueChart.data.labels = data.dailyRevenue.map(d => d.date);
+    revenueChart.data.datasets[0].data = data.dailyRevenue.map(d => d.revenue);
+    revenueChart.update();
+  } catch (err) {
+    console.error("Analytics error:", err);
+  }
 }
 
 /* ================= ADD / DELETE ================= */
 async function addItem() {
   await fetch("/admin/add-item", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: token
-    },
+    headers: { "Content-Type": "application/json", Authorization: token },
     body: JSON.stringify({
       name: itemName.value.trim(),
       stock: Number(itemStock.value),
@@ -261,10 +274,7 @@ async function resetLogs() {
 
   await fetch("/admin/reset-logs", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: token
-    }
+    headers: { "Content-Type": "application/json", Authorization: token }
   });
 
   loadAdmin();
@@ -279,24 +289,11 @@ async function logout() {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ token })
   });
-
   localStorage.clear();
   location.href = "login.html";
 }
 
-/* ================= INIT ================= */
-function initCharts() {
-  stockChart = new Chart(
-    document.getElementById("stockChart"),
-    { type: "bar", data: { labels: [], datasets: [{ label: "Stock", data: [] }] } }
-  );
-
-  revenueChart = new Chart(
-    document.getElementById("revenueChart"),
-    { type: "line", data: { labels: [], datasets: [{ label: "Revenue", data: [], borderColor:"#3ec6c6" }] } }
-  );
-}
-
+/* ================= START ================= */
 initCharts();
 loadAdmin();
 loadOrders();

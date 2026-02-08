@@ -8,22 +8,14 @@
 
 <body>
 
-  <button class="dark-toggle" onclick="toggleDarkMode()">🌙</button>
-
 <div class="container">
   <h1>🛒 Shop</h1>
 
-<div style="display:flex; gap:10px; flex-wrap:wrap;">
-  <button onclick="logout()" class="login-btn" style="width:120px">
-    Logout
-  </button>
-
-  <button onclick="window.location.href='customer-orders.html'"
-    class="login-btn" style="width:160px">
-    🧾 My Orders
-  </button>
-</div>
-
+  <div style="display:flex; gap:10px; flex-wrap:wrap;">
+    <button onclick="logout()" class="login-btn" style="width:120px">
+      Logout
+    </button>
+  </div>
 
   <div id="items" class="grid"></div>
 
@@ -32,12 +24,14 @@
   <h2>🧺 Cart</h2>
   <ul id="cart"></ul>
 
-  <button onclick="checkout()">Checkout</button>
+  <!-- Desktop checkout ONLY -->
+  <button id="desktopCheckout" onclick="checkout()">Checkout</button>
+
   <p id="msg"></p>
 
   <hr>
 
-  <!-- 👥 ORDER HISTORY -->
+  <!-- ORDER HISTORY -->
   <h2>📦 My Orders</h2>
   <div id="orders"></div>
 </div>
@@ -51,6 +45,7 @@ if (!token || role !== "customer") {
 }
 
 let cart = {};
+let prices = {};
 
 /* ================= LOAD ITEMS ================= */
 async function loadItems() {
@@ -62,25 +57,20 @@ async function loadItems() {
   const container = document.getElementById("items");
   container.innerHTML = "";
 
+  prices = {};
+
   Object.keys(data).forEach(key => {
     const item = data[key];
+    prices[key] = item.price;
 
     container.innerHTML += `
       <div class="item-card">
         <h3>${item.name}</h3>
+        <p style="font-weight:bold; margin:6px 0;">₹ ${item.price}</p>
 
-        <p style="font-weight:bold; margin:6px 0;">
-          ₹ ${item.price ?? 0}
-        </p>
+        ${item.warning ? `<span class="badge">Only ${item.warning} left</span>` : ""}
 
-        ${
-          item.warning
-            ? `<span class="badge">Only ${item.warning} left</span>`
-            : ""
-        }
-
-        <button ${item.canBuy ? "" : "disabled"}
-          onclick="add('${key}')">
+        <button ${item.canBuy ? "" : "disabled"} onclick="add('${key}')">
           ${item.canBuy ? "Add to Cart" : "Out of Stock"}
         </button>
       </div>
@@ -112,7 +102,7 @@ function renderCart() {
 
   Object.keys(cart).forEach(key => {
     totalItems += cart[key];
-    totalPrice += cart[key] * 1; // price shown on payment page
+    totalPrice += cart[key] * prices[key];
 
     ul.innerHTML += `
       <li>
@@ -126,7 +116,6 @@ function renderCart() {
     cartInfo.innerText = `🧺 ${totalItems} items | ₹${totalPrice}`;
   }
 }
-
 
 /* ================= CHECKOUT ================= */
 function checkout() {
@@ -149,29 +138,21 @@ async function loadOrders() {
   const container = document.getElementById("orders");
   container.innerHTML = "";
 
-  if (orders.length === 0) {
+  if (!orders.length) {
     container.innerHTML = "<p>No past orders</p>";
     return;
   }
 
   orders.forEach(o => {
-    let html = `
-      <div style="border:1px solid #ddd; padding:12px; margin-bottom:12px;">
+    container.innerHTML += `
+      <div style="border:1px solid #ddd;padding:12px;margin-bottom:12px;">
         <strong>Order Date:</strong> ${o.time}<br><br>
         <ul>
-    `;
-
-    o.items.forEach(i => {
-      html += `<li>${i.name} × ${i.qty} = ₹${i.subtotal}</li>`;
-    });
-
-    html += `
+          ${o.items.map(i => `<li>${i.name} × ${i.qty} = ₹${i.subtotal}</li>`).join("")}
         </ul>
         <strong>Total: ₹${o.totalAmount}</strong>
       </div>
     `;
-
-    container.innerHTML += html;
   });
 }
 
@@ -188,29 +169,11 @@ setInterval(loadItems, 3000);
 setInterval(loadOrders, 5000);
 </script>
 
-<!-- 📱 Mobile Cart Bar -->
+<!-- 📱 Mobile Cart Bar (ONLY ONE CHECKOUT) -->
 <div id="mobileCartBar">
   <span id="cartInfo">🧺 0 items | ₹0</span>
   <button onclick="checkout()">Checkout</button>
 </div>
-
-<script>
-function toggleDarkMode() {
-  document.body.classList.toggle("dark");
-
-  if (document.body.classList.contains("dark")) {
-    localStorage.setItem("darkMode", "on");
-  } else {
-    localStorage.setItem("darkMode", "off");
-  }
-}
-
-window.onload = () => {
-  if (localStorage.getItem("darkMode") === "on") {
-    document.body.classList.add("dark");
-  }
-};
-</script>
 
 </body>
 </html>
