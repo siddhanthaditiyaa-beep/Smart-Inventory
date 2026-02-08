@@ -42,17 +42,25 @@ const Item = mongoose.model("Item", new mongoose.Schema({
   key: String,
   name: String,
   stock: Number,
-  price: { type: Number, default: 0 }   // ✅ FIX 1
+  price: { type: Number, default: 0 }
 }));
 
 const Order = mongoose.model("Order", new mongoose.Schema({
-  cart: Object,
+  cart: Object,               // 🔧 RESTORED
   customer: {
     fname: String,
     lname: String,
     email: String
   },
-  items: Array,
+  items: [
+    {
+      key: String,
+      name: String,
+      price: Number,
+      qty: Number,
+      subtotal: Number
+    }
+  ],
   totalAmount: Number,
   paymentStatus: String,
   time: String
@@ -129,24 +137,31 @@ app.post("/logout", (req, res) => {
 });
 
 /* =========================
-   🔍 MONITORING AGENT
+   🔍 MONITORING AGENT (STABLE)
 ========================= */
 setInterval(async () => {
   const items = await Item.find();
   for (const i of items) {
     if (i.stock <= 3) {
-      await Log.create({
+      const exists = await Log.findOne({
         type: "monitoring",
         item: i.name,
-        stock: i.stock,
-        time: new Date().toLocaleString()
+        stock: i.stock
       });
+      if (!exists) {
+        await Log.create({
+          type: "monitoring",
+          item: i.name,
+          stock: i.stock,
+          time: new Date().toLocaleString()
+        });
+      }
     }
   }
 }, 3000);
 
 /* =========================
-   🤖 FORECASTING AGENT
+   🤖 FORECASTING AGENT (AUTO RESTOCK)
 ========================= */
 setInterval(async () => {
   const items = await Item.find();
@@ -185,26 +200,29 @@ app.get("/shop-items", auth("customer"), async (_, res) => {
    CHECKOUT
 ========================= */
 app.post("/checkout", auth("customer"), async (req, res) => {
+  const cart = req.body.cart;
   let total = 0;
   const items = [];
 
-  for (const key in req.body.cart) {
+  for (const key in cart) {
     const item = await Item.findOne({ key });
-    const qty = Math.min(req.body.cart[key], item.stock);
+    const qty = Math.min(cart[key], item.stock);
+    const subtotal = qty * item.price;
 
-    total += qty * item.price;
     await Item.updateOne({ key }, { $inc: { stock: -qty } });
 
+    total += subtotal;
     items.push({
       key,
       name: item.name,
       price: item.price,
       qty,
-      subtotal: qty * item.price
+      subtotal
     });
   }
 
   await Order.create({
+    cart,                       // 🔧 RESTORED
     customer: {
       fname: req.user.fname,
       lname: req.user.lname,
@@ -283,6 +301,22 @@ app.delete("/admin/delete-item/:key", auth("admin"), async (req, res) => {
 app.post("/admin/reset-logs", auth("admin"), async (_, res) => {
   await Log.deleteMany({});
   await Order.deleteMany({});
+
+  const defaults = {
+    chocolates: 5,
+    biscuits: 8,
+    chips: 6,
+    juice: 7,
+    "soft-drinks": 9,
+    "canned-food": 4,
+    rice: 7,
+    salt: 10
+  };
+
+  for (const key in defaults) {
+    await Item.updateOne({ key }, { stock: defaults[key] });
+  }
+
   res.json({ ok: true });
 });
 
