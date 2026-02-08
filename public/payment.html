@@ -3,11 +3,50 @@
 <head>
   <title>Payment | Smart Inventory</title>
   <link rel="stylesheet" href="style.css">
+
+  <style>
+    .loader {
+      width: 36px;
+      height: 36px;
+      border: 4px solid #ddd;
+      border-top: 4px solid #3ec6c6;
+      border-radius: 50%;
+      margin: 12px auto;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .success {
+      color: green;
+      animation: pop 0.4s ease;
+    }
+
+    .failure {
+      color: red;
+      animation: shake 0.35s;
+    }
+
+    @keyframes pop {
+      0% { transform: scale(0.7); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    @keyframes shake {
+      0% { transform: translateX(0); }
+      25% { transform: translateX(-6px); }
+      50% { transform: translateX(6px); }
+      75% { transform: translateX(-6px); }
+      100% { transform: translateX(0); }
+    }
+  </style>
 </head>
 
 <body>
 
-<div class="container" style="max-width:500px;text-align:center;">
+<div class="container" style="max-width:500px; text-align:center;">
   <h1>💳 Secure Payment</h1>
 
   <h3>Order Summary</h3>
@@ -21,90 +60,98 @@
 </div>
 
 <script>
-/* ================= AUTH CHECK ================= */
 const token = localStorage.getItem("token");
 const role = localStorage.getItem("role");
-
-if (!token || role !== "customer") {
-  alert("Session expired. Please login again.");
-  location.href = "login.html";
-}
-
-/* ================= CART ================= */
 const cart = JSON.parse(localStorage.getItem("pendingCart") || "{}");
+
 const summary = document.getElementById("summary");
 const totalEl = document.getElementById("total");
 const actionArea = document.getElementById("actionArea");
 
 let total = 0;
 
-/* ================= LOAD SUMMARY ================= */
+/* ================= LOAD SUMMARY SAFELY ================= */
 async function loadSummary() {
-  if (Object.keys(cart).length === 0) {
+  if (!token || role !== "customer") {
+    summary.innerHTML = "<li>Session expired. Please login again.</li>";
+    return;
+  }
+
+  if (!Object.keys(cart).length) {
     summary.innerHTML = "<li>Your cart is empty</li>";
     return;
   }
 
-  const res = await fetch("/shop-items", {
-    headers: { Authorization: token }
-  });
+  try {
+    const res = await fetch("/shop-items", {
+      headers: { Authorization: token }
+    });
 
-  const items = await res.json();
+    if (!res.ok) throw new Error("Session expired");
 
-  summary.innerHTML = "";
-  total = 0;
+    const items = await res.json();
 
-  Object.keys(cart).forEach(key => {
-    const item = items[key];
-    if (!item) return;
+    Object.keys(cart).forEach(key => {
+      const item = items[key];
+      if (!item) return;
 
-    const cost = item.price * cart[key];
-    total += cost;
+      const cost = item.price * cart[key];
+      total += cost;
 
-    summary.innerHTML += `
-      <li>${item.name} × ${cart[key]} = ₹${cost}</li>
-    `;
-  });
+      summary.innerHTML += `
+        <li>${item.name} × ${cart[key]} = ₹${cost}</li>
+      `;
+    });
 
-  totalEl.innerText = total;
+    totalEl.innerText = total;
+  } catch {
+    summary.innerHTML = "<li>Session expired. Please login again.</li>";
+  }
 }
 
 loadSummary();
 
 /* ================= PAYMENT ================= */
 async function pay() {
-  if (total === 0) {
-    alert("Cart is empty");
-    return;
-  }
+  if (!Object.keys(cart).length) return;
 
-  actionArea.innerHTML = `<p>Processing payment...</p>`;
+  actionArea.innerHTML = `<div class="loader"></div><p>Processing payment…</p>`;
 
-  const res = await fetch("/checkout", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: token
-    },
-    body: JSON.stringify({ cart })
-  });
+  setTimeout(async () => {
+    try {
+      const res = await fetch("/checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: token
+        },
+        body: JSON.stringify({ cart })
+      });
 
-  if (!res.ok) {
-    actionArea.innerHTML = `
-      <p style="color:red;">Payment failed</p>
-      <button onclick="location.reload()">Retry</button>
-    `;
-    return;
-  }
+      if (!res.ok) throw new Error();
 
-  localStorage.removeItem("pendingCart");
+      localStorage.removeItem("pendingCart");
 
-  actionArea.innerHTML = `
-    <h2 style="color:green;">✅ Payment Successful</h2>
-  `;
+      actionArea.innerHTML = `
+        <div class="success">
+          <div style="font-size:64px;">✔</div>
+          <h2>Payment Successful</h2>
+        </div>
+      `;
 
-  setTimeout(() => {
-    location.href = "customer.html";
+      setTimeout(() => {
+        window.location.href = "customer.html";
+      }, 1800);
+
+    } catch {
+      actionArea.innerHTML = `
+        <div class="failure">
+          <div style="font-size:64px;">✖</div>
+          <h2>Payment Failed</h2>
+          <button onclick="location.reload()">Retry</button>
+        </div>
+      `;
+    }
   }, 1500);
 }
 </script>
