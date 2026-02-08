@@ -129,8 +129,11 @@ function checkout() {
   }
 
   localStorage.setItem("pendingCart", JSON.stringify(cart));
+  localStorage.setItem("priceMap", JSON.stringify(prices)); // ✅ ADD THIS
+
   window.location.href = "payment.html";
 }
+
 
 /* ================= ORDER HISTORY ================= */
 async function loadOrders() {
