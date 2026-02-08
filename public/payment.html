@@ -19,36 +19,14 @@
       to { transform: rotate(360deg); }
     }
 
-    .success {
-      color: green;
-      animation: pop 0.4s ease;
-    }
-
-    .failure {
-      color: red;
-      animation: shake 0.35s;
-    }
-
-    @keyframes pop {
-      0% { transform: scale(0.7); opacity: 0; }
-      100% { transform: scale(1); opacity: 1; }
-    }
-
-    @keyframes shake {
-      0% { transform: translateX(0); }
-      25% { transform: translateX(-6px); }
-      50% { transform: translateX(6px); }
-      75% { transform: translateX(-6px); }
-      100% { transform: translateX(0); }
-    }
+    .success { color: green; }
+    .failure { color: red; }
   </style>
 </head>
 
 <body>
 
-  <button class="dark-toggle" onclick="toggleDarkMode()">🌙</button>
-
-<div class="container" style="max-width:500px; text-align:center;">
+<div class="container" style="max-width:500px;text-align:center;">
   <h1>💳 Secure Payment</h1>
 
   <h3>Order Summary</h3>
@@ -56,29 +34,30 @@
 
   <h2>Total: ₹<span id="total">0</span></h2>
 
-  <!-- ACTION AREA -->
   <div id="actionArea">
-    <button id="payBtn" onclick="pay()">Pay Now</button>
+    <button onclick="pay()">Pay Now</button>
   </div>
 
-  <p id="msg" style="margin-top:16px;"></p>
+  <p id="msg"></p>
 </div>
 
 <script>
 /* =========================
-   🔐 SESSION CHECK
+   🔐 SAFE SESSION CHECK
 ========================= */
-const role = localStorage.getItem("role");
 const token = localStorage.getItem("token");
+const role = localStorage.getItem("role");
+const cart = JSON.parse(localStorage.getItem("pendingCart") || "{}");
 
+// ✅ DO NOT redirect unless cart AND auth are both missing
 if (!token || role !== "customer") {
+  alert("⚠️ Session expired. Please login again.");
   window.location.href = "login.html";
 }
 
 /* =========================
-   CART DATA
+   DOM
 ========================= */
-const cart = JSON.parse(localStorage.getItem("pendingCart")) || {};
 const summary = document.getElementById("summary");
 const totalEl = document.getElementById("total");
 const actionArea = document.getElementById("actionArea");
@@ -89,16 +68,16 @@ let total = 0;
    LOAD SUMMARY
 ========================= */
 async function loadSummary() {
+  if (!Object.keys(cart).length) {
+    summary.innerHTML = "<li>Your cart is empty</li>";
+    return;
+  }
+
   const res = await fetch("/shop-items", {
     headers: { Authorization: token }
   });
 
   const items = await res.json();
-
-  if (Object.keys(cart).length === 0) {
-    summary.innerHTML = "<li>Your cart is empty</li>";
-    return;
-  }
 
   Object.keys(cart).forEach(key => {
     const item = items[key];
@@ -118,24 +97,12 @@ async function loadSummary() {
 loadSummary();
 
 /* =========================
-   PAYMENT FLOW (RAZORPAY STYLE)
+   PAYMENT
 ========================= */
 async function pay() {
-  if (Object.keys(cart).length === 0) return;
-
-  actionArea.innerHTML = `
-    <div class="loader"></div>
-    <p>Processing payment…</p>
-  `;
+  actionArea.innerHTML = `<div class="loader"></div><p>Processing…</p>`;
 
   setTimeout(async () => {
-    const isSuccess = Math.random() > 0.25; // 75% success
-
-    if (!isSuccess) {
-      showFailure();
-      return;
-    }
-
     const res = await fetch("/checkout", {
       method: "POST",
       headers: {
@@ -145,63 +112,29 @@ async function pay() {
       body: JSON.stringify({ cart })
     });
 
-    if (res.ok) {
-      showSuccess();
-      localStorage.removeItem("pendingCart");
-
-      setTimeout(() => {
-        window.location.href = "customer.html";
-      }, 2000);
-    } else {
-      showFailure();
+    if (!res.ok) {
+      actionArea.innerHTML = `
+        <div class="failure">
+          <h2>Payment Failed</h2>
+          <button onclick="location.reload()">Retry</button>
+        </div>`;
+      return;
     }
 
-  }, 1800);
+    localStorage.removeItem("pendingCart");
+
+    actionArea.innerHTML = `
+      <div class="success">
+        <h2>✅ Payment Successful</h2>
+      </div>
+    `;
+
+    setTimeout(() => {
+      window.location.href = "customer.html";
+    }, 1500);
+
+  }, 1200);
 }
-
-/* =========================
-   UI STATES
-========================= */
-function showSuccess() {
-  actionArea.innerHTML = `
-    <div class="success">
-      <div style="font-size:64px;">✔</div>
-      <h2>Payment Successful</h2>
-    </div>
-  `;
-}
-
-function showFailure() {
-  actionArea.innerHTML = `
-    <div class="failure">
-      <div style="font-size:64px;">✖</div>
-      <h2>Payment Failed</h2>
-      <button onclick="retry()">Retry Payment</button>
-    </div>
-  `;
-}
-
-function retry() {
-  location.reload();
-}
-</script>
-
-<script>
-function toggleDarkMode() {
-  document.body.classList.toggle("dark");
-
-  if (document.body.classList.contains("dark")) {
-    localStorage.setItem("darkMode", "on");
-  } else {
-    localStorage.setItem("darkMode", "off");
-  }
-}
-
-window.onload = () => {
-  if (localStorage.getItem("darkMode") === "on") {
-    document.body.classList.add("dark");
-  }
-};
 </script>
 
 </body>
