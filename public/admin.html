@@ -116,6 +116,7 @@ const inventoryTable = document.getElementById("inventoryTable");
 const toastContainer = document.getElementById("toastContainer");
 
 let stockChart, revenueChart;
+let forecastToastShown = {};
 
 /* ================= TOAST ================= */
 function showToast(msg) {
@@ -142,7 +143,9 @@ function initCharts() {
 
 /* ================= LOAD ADMIN ================= */
 async function loadAdmin() {
-  const res = await fetch("/admin-data", { headers: { Authorization: token }});
+  const res = await fetch("/admin-data", {
+    headers: { Authorization: token }
+  });
   const d = await res.json();
 
   renderInventory(d.inventory);
@@ -150,16 +153,14 @@ async function loadAdmin() {
   renderLogs(d.monitoring, "monitoringLogs");
   renderLogs(d.forecasting, "forecastingLogs");
 
-  // 🔔 Forecasting-based toast (ONLY when stock hits 0)
-d.forecasting.forEach(log => {
-  if (!window._forecastShown) window._forecastShown = {};
-
-  if (!window._forecastShown[log.item]) {
-    showToast(`${log.item} was OUT OF STOCK. Auto-restocked.`);
-    window._forecastShown[log.item] = true;
-  }
-});
-
+  // 🔔 Forecasting toast ONLY (stock hit 0)
+  d.forecasting.forEach(log => {
+    if (!forecastToastShown[log.item]) {
+      showToast(`${log.item} was OUT OF STOCK. Auto-restocked.`);
+      forecastToastShown[log.item] = true;
+    }
+  });
+}
 
 /* ================= INVENTORY ================= */
 function renderInventory(items) {
@@ -168,9 +169,9 @@ function renderInventory(items) {
     inventoryTable.innerHTML += `
       <tr>
         <td>${i.name}</td>
-        <td><input value="${i.stock}" type="number"
+        <td><input type="number" value="${i.stock}"
           onblur="updateStock('${i.key}', this.value)"></td>
-        <td><input value="${i.price}" type="number"
+        <td><input type="number" value="${i.price}"
           onblur="updatePrice('${i.key}', this.value)"></td>
         <td><button class="delete-btn" onclick="deleteItem('${i.key}')">✖</button></td>
       </tr>`;
@@ -186,12 +187,14 @@ function renderStockChart(items) {
   stockChart.update();
 }
 
-/* ================= HELPERS ================= */
+/* ================= LOGS ================= */
 function renderLogs(logs, id) {
   document.getElementById(id).innerHTML =
-    logs.length ? logs.map(l =>
-      `<li>${l.item} → ${l.stock}<br><small>${l.time}</small></li>`
-    ).join("") : "<li>No logs</li>";
+    logs.length
+      ? logs.map(l =>
+        `<li>${l.item} → ${l.stock}<br><small>${l.time}</small></li>`
+      ).join("")
+      : "<li>No logs</li>";
 }
 
 /* ================= ACTIONS ================= */
@@ -234,7 +237,6 @@ async function resetLogs() {
   const ok = confirm(
     "⚠️ This will:\n\n• Reset ALL inventory stocks\n• Delete ALL orders\n• Clear ALL logs\n\nDo you want to continue?"
   );
-
   if (!ok) return;
 
   await fetch("/admin/reset-logs", {
@@ -242,12 +244,9 @@ async function resetLogs() {
     headers: { Authorization: token }
   });
 
-  // Clear forecasting toast memory
-  window._forecastShown = {};
-
+  forecastToastShown = {};
   loadAdmin();
 }
-
 
 async function logout() {
   await fetch("/logout", {
