@@ -16,11 +16,6 @@ app.use("/uploads", express.static("uploads"));
 let sessions = {};
 
 /* =========================
-   MONITORING STATE (ANTI-SPAM)
-========================= */
-const lastMonitoredStock = {};
-
-/* =========================
    UPLOADS
 ========================= */
 if (!fs.existsSync("uploads")) fs.mkdirSync("uploads");
@@ -144,15 +139,13 @@ app.post("/logout", (req, res) => {
 });
 
 /* =========================
-   🔍 MONITORING AGENT
+   🔍 MONITORING AGENT (EVERY 2 SECONDS)
 ========================= */
 setInterval(async () => {
   const items = await Item.find();
 
   for (const i of items) {
-    const prev = lastMonitoredStock[i.key];
-
-    if ((prev === undefined || prev > 3) && i.stock <= 3 && i.stock > 0) {
+    if (i.stock <= 3 && i.stock > 0) {
       await Log.create({
         type: "monitoring",
         item: i.name,
@@ -160,10 +153,8 @@ setInterval(async () => {
         time: new Date().toLocaleString()
       });
     }
-
-    lastMonitoredStock[i.key] = i.stock;
   }
-}, 3000);
+}, 2000);
 
 /* =========================
    🤖 FORECASTING AGENT
@@ -181,8 +172,6 @@ setInterval(async () => {
         stock: 10,
         time: new Date().toLocaleString()
       });
-
-      lastMonitoredStock[i.key] = 10;
     }
   }
 }, 5000);
