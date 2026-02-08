@@ -19,8 +19,28 @@
       to { transform: rotate(360deg); }
     }
 
-    .success { color: green; }
-    .failure { color: red; }
+    .success {
+      color: #16a34a;
+      animation: pop 0.45s ease;
+    }
+
+    .failure {
+      color: red;
+      animation: shake 0.35s;
+    }
+
+    @keyframes pop {
+      0% { transform: scale(0.6); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    @keyframes shake {
+      0% { transform: translateX(0); }
+      25% { transform: translateX(-6px); }
+      50% { transform: translateX(6px); }
+      75% { transform: translateX(-6px); }
+      100% { transform: translateX(0); }
+    }
   </style>
 </head>
 
@@ -37,8 +57,6 @@
   <div id="actionArea">
     <button onclick="pay()">Pay Now</button>
   </div>
-
-  <p id="msg"></p>
 </div>
 
 <script>
@@ -49,7 +67,6 @@ const token = localStorage.getItem("token");
 const role = localStorage.getItem("role");
 const cart = JSON.parse(localStorage.getItem("pendingCart") || "{}");
 
-// ✅ DO NOT redirect unless cart AND auth are both missing
 if (!token || role !== "customer") {
   alert("⚠️ Session expired. Please login again.");
   window.location.href = "login.html";
@@ -100,7 +117,10 @@ loadSummary();
    PAYMENT
 ========================= */
 async function pay() {
-  actionArea.innerHTML = `<div class="loader"></div><p>Processing…</p>`;
+  actionArea.innerHTML = `
+    <div class="loader"></div>
+    <p>Processing payment…</p>
+  `;
 
   setTimeout(async () => {
     const res = await fetch("/checkout", {
@@ -115,7 +135,7 @@ async function pay() {
     if (!res.ok) {
       actionArea.innerHTML = `
         <div class="failure">
-          <h2>Payment Failed</h2>
+          <h2>❌ Payment Failed</h2>
           <button onclick="location.reload()">Retry</button>
         </div>`;
       return;
@@ -125,15 +145,16 @@ async function pay() {
 
     actionArea.innerHTML = `
       <div class="success">
-        <h2>✅ Payment Successful</h2>
+        <div style="font-size:64px;">✔</div>
+        <h2>Payment Successful</h2>
       </div>
     `;
 
     setTimeout(() => {
       window.location.href = "customer.html";
-    }, 1500);
+    }, 1800);
 
-  }, 1200);
+  }, 1400);
 }
 </script>
 
