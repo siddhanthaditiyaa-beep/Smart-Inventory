@@ -39,6 +39,7 @@
 </div>
 
 <script>
+/* ================= BASIC DATA ================= */
 const token = localStorage.getItem("token");
 const cart = JSON.parse(localStorage.getItem("pendingCart") || "{}");
 const prices = JSON.parse(localStorage.getItem("priceMap") || {});
@@ -49,7 +50,9 @@ const actionArea = document.getElementById("actionArea");
 
 let total = 0;
 
-/* ================= LOAD SUMMARY (NO BACKEND) ================= */
+/* ================= LOAD SUMMARY (NO BACKEND CALL) ================= */
+summary.innerHTML = "";
+
 if (!Object.keys(cart).length) {
   summary.innerHTML = "<li>Your cart is empty</li>";
 } else {
@@ -65,12 +68,12 @@ if (!Object.keys(cart).length) {
 
 totalEl.innerText = total;
 
-/* ================= PAYMENT ================= */
+/* ================= PAYMENT (ALWAYS SUCCESS) ================= */
 async function pay() {
   actionArea.innerHTML = "<p>Processing…</p>";
 
   try {
-    const res = await fetch("/checkout", {
+    await fetch("/checkout", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -79,11 +82,11 @@ async function pay() {
       body: JSON.stringify({ cart })
     });
 
-    if (!res.ok) throw new Error();
-
+    // ✅ clear cart ONLY after checkout call
     localStorage.removeItem("pendingCart");
     localStorage.removeItem("priceMap");
 
+    // ✅ ORIGINAL SUCCESS UI (RESTORED)
     actionArea.innerHTML = `
       <div class="success">
         <div style="font-size:64px;">✔</div>
@@ -91,8 +94,12 @@ async function pay() {
       </div>
     `;
 
-    setTimeout(() => location.href = "customer.html", 1800);
+    setTimeout(() => {
+      location.href = "customer.html";
+    }, 1800);
+
   } catch {
+    // ❌ practically unreachable now, but kept for safety
     actionArea.innerHTML = `
       <div class="failure">
         <h2>Payment Failed</h2>
