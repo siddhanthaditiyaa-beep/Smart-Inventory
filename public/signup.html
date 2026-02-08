@@ -7,8 +7,6 @@
 
 <body class="login-body">
 
-  <button class="dark-toggle" onclick="toggleDarkMode()">🌙</button>
-
 <div class="login-wrapper">
 
   <h1 class="login-title">Create Account</h1>
@@ -26,7 +24,9 @@
       <span class="eye" onclick="toggleSignupPassword()">👁️</span>
     </div>
 
-    <button id="signupBtn" class="login-btn" onclick="signup()">CREATE ACCOUNT</button>
+    <button id="signupBtn" class="login-btn" onclick="signup()">
+      CREATE ACCOUNT
+    </button>
 
     <div class="loader" id="loader" style="display:none;"></div>
 
@@ -52,15 +52,10 @@ function toggleSignupPassword() {
 }
 
 async function signup() {
-  const fnameEl = document.getElementById("fname");
-  const lnameEl = document.getElementById("lname");
-  const emailEl = document.getElementById("email");
-  const passwordEl = document.getElementById("password");
-
-  const fname = fnameEl.value.trim();
-  const lname = lnameEl.value.trim();
-  const email = emailEl.value.trim();
-  const password = passwordEl.value.trim();
+  const fname = document.getElementById("fname").value.trim();
+  const lname = document.getElementById("lname").value.trim();
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value.trim();
 
   const msg = document.getElementById("msg");
   const btn = document.getElementById("signupBtn");
@@ -115,24 +110,6 @@ document.addEventListener("keydown", function (e) {
     signup();
   }
 });
-</script>
-
-<script>
-function toggleDarkMode() {
-  document.body.classList.toggle("dark");
-
-  if (document.body.classList.contains("dark")) {
-    localStorage.setItem("darkMode", "on");
-  } else {
-    localStorage.setItem("darkMode", "off");
-  }
-}
-
-window.onload = () => {
-  if (localStorage.getItem("darkMode") === "on") {
-    document.body.classList.add("dark");
-  }
-};
 </script>
 
 </body>

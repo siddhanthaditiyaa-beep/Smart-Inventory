@@ -230,7 +230,7 @@ th, td {
 }
 
 /* =================================================
-   📱 MOBILE RESPONSIVENESS (SAFE + CLEAN)
+   📱 MOBILE RESPONSIVENESS
 ================================================= */
 @media (max-width: 768px) {
 
@@ -324,8 +324,42 @@ th, td {
   }
 }
 
+/* ===============================
+   ✅ CHECKOUT BUTTON FIX
+================================ */
+
+/* Hide desktop checkout on mobile */
 @media (max-width: 768px) {
   #desktopCheckout {
     display: none;
   }
+}
+
+/* Hide mobile cart bar by default (DESKTOP) */
+#mobileCartBar {
+  display: none;
+}
+
+/* Show mobile cart bar ONLY on mobile */
+@media (max-width: 768px) {
+  #mobileCartBar {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    border-top: 1px solid #ddd;
+    padding: 12px 16px;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 999;
+  }
+}
+
+/* ===============================
+   ❌ DARK MODE COMPLETELY DISABLED
+================================ */
+.dark-toggle {
+  display: none !important;
 }
