@@ -144,6 +144,11 @@ margin-top:8px;
 </div>
 
 <div class="card">
+<h2>🏬 Nearby Store Stock</h2>
+<ul id="nearbyStock"></ul>
+</div>
+
+<div class="card">
 <h2>📡 Live Activity Feed</h2>
 <ul id="activityFeed">
 <li>System started</li>
@@ -306,8 +311,38 @@ box.innerHTML+=`<li style="color:orange;">⚠️ ${i.name} running low (${i.stoc
 
 });
 
+
+
 if(box.innerHTML===""){
 box.innerHTML="<li>All products healthy</li>";
+}
+
+}
+
+function renderNearbyStock(items){
+
+const box = document.getElementById("nearbyStock");
+
+box.innerHTML = "";
+
+items.forEach(i=>{
+
+if(i.stock === 0){
+
+box.innerHTML += `
+<li>
+${i.name} available at:
+Andheri Branch (1.2 km),
+Bandra Branch (2.4 km)
+</li>
+`;
+
+}
+
+});
+
+if(box.innerHTML === ""){
+box.innerHTML = "<li>No nearby stock needed</li>";
 }
 
 }
@@ -330,16 +365,11 @@ feed.innerHTML += `<li>🤖 AI restocked ${l.item}</li>`;
 
 }
 
-/* INVENTORY VALUE */
-
-function calculateInventoryValue(items){
-
 /* AI INTELLIGENCE BANNER */
 
 function updateAIBanner(data){
 
 const items = data.inventory || [];
-const orders = data.orders || [];
 const forecasting = data.forecasting || [];
 
 let lowStock = items.filter(i => i.stock <= 3).length;
@@ -355,6 +385,10 @@ document.getElementById("aiBanner").innerText =
 `🧠 AI Retail Intelligence Center | Store Health: ${health} | Low Stock Items: ${lowStock} | AI Restocks: ${aiRestocks} | Products Tracked: ${totalItems}`;
 
 }
+
+/* INVENTORY VALUE */
+
+function calculateInventoryValue(items){
 
 let total=0;
 
@@ -517,6 +551,7 @@ const data = await res.json();
 renderInventory(data.inventory||[]);
 renderStockChart(data.inventory||[]);
 renderAlerts(data.inventory||[]);
+renderNearbyStock(data.inventory||[]);
 calculateInventoryValue(data.inventory||[]);
 renderLogs(data.monitoring||[],"monitoringLogs");
 renderLogs(data.forecasting||[],"forecastingLogs");

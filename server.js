@@ -238,27 +238,55 @@ setInterval(async () => {
 }, 2000);
 
 /* =========================
-   🤖 FORECASTING AGENT
+   🤖 FORECASTING AGENT (SMART RESTOCK DELAY)
 ========================= */
+
+const pendingRestocks = {};
+
 setInterval(async () => {
+
   const items = await Item.find();
 
   for (const i of items) {
-    if (i.stock === 0) {
-      await Item.updateOne(
-        { key: i.key },
-        { $inc: { stock: 10 } }
-      );
 
-      await Log.create({
-        type: "forecasting",
-        item: i.name,
-        stock: 10,
-        time: new Date().toLocaleString()
-      });
+    if (i.stock === 0 && !pendingRestocks[i.key]) {
+
+      console.log("⚠️ Item out of stock:", i.name);
+
+      pendingRestocks[i.key] = true;
+
+      setTimeout(async () => {
+
+        const latest = await Item.findOne({ key: i.key });
+
+        // Only restock if still empty
+        if (latest.stock === 0) {
+
+          await Item.updateOne(
+            { key: i.key },
+            { $inc: { stock: 10 } }
+          );
+
+          await Log.create({
+            type: "forecasting",
+            item: i.name,
+            stock: 10,
+            time: new Date().toLocaleString()
+          });
+
+          console.log("🤖 AI Restocked:", i.name);
+
+        }
+
+        delete pendingRestocks[i.key];
+
+      }, 5000); // 5 second delay
+
     }
+
   }
-}, 5000);
+
+}, 2000);
 
 /* =========================
    SHOP
