@@ -241,8 +241,29 @@ let forecastToastShown = {};
 
 /* CSV DOWNLOAD */
 
-function downloadCSV(){
-window.open("/admin/download-csv");
+async function downloadCSV(){
+
+const res = await fetch("/admin/download-csv",{
+headers:{ Authorization: token }
+});
+
+if(!res.ok){
+alert("Download failed");
+return;
+}
+
+const blob = await res.blob();
+
+const url = window.URL.createObjectURL(blob);
+
+const a = document.createElement("a");
+a.href = url;
+a.download = "inventory.csv";
+
+document.body.appendChild(a);
+a.click();
+a.remove();
+
 }
 
 /* LIVE DASHBOARD CLOCK */
