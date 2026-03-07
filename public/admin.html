@@ -411,12 +411,22 @@ slot.style.borderRadius="6px";
 slot.style.fontWeight="bold";
 slot.style.color="white";
 
+slot.style.width="40px";
+slot.style.height="40px";
+slot.style.display="flex";
+slot.style.alignItems="center";
+slot.style.justifyContent="center";
+slot.style.borderRadius="6px";
+slot.style.fontWeight="bold";
+slot.style.color="white";
+slot.style.fontSize="14px";
+
 if(data.occupied_slot_numbers.includes(i)){
 slot.style.background="#22c55e";
-slot.innerText="✔";
+slot.innerText="🟩";
 }else{
 slot.style.background="#ef4444";
-slot.innerText="✖";
+slot.innerText="🟥";
 }
 
 slotGrid.appendChild(slot);
