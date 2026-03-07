@@ -45,6 +45,17 @@ to{opacity:0;transform:translateX(120%);}
 
 <div class="admin-header">
 <h1>📊 Admin Dashboard
+
+<span id="alertCounter" style="
+background:#ef4444;
+color:white;
+padding:3px 8px;
+border-radius:12px;
+font-size:12px;
+margin-left:10px;
+">
+🔔 0 Alerts
+</span>
 <span style="
 background:#22c55e;
 color:white;
@@ -307,16 +318,29 @@ function renderAlerts(items){
 const box=document.getElementById("alerts");
 box.innerHTML="";
 
+let alertCount = 0;
+
 items.forEach(i=>{
 
 if(i.stock===0){
 box.innerHTML+=`<li style="color:red;">⚠️ ${i.name} shelf empty</li>`;
+alertCount++;
 }
 else if(i.stock<=3){
 box.innerHTML+=`<li style="color:orange;">⚠️ ${i.name} running low (${i.stock} left)</li>`;
+alertCount++;
 }
 
 });
+
+if(box.innerHTML===""){
+box.innerHTML="<li>All products healthy</li>";
+}
+
+document.getElementById("alertCounter").innerText =
+`🔔 ${alertCount} Alerts`;
+
+}
 
 
 
@@ -850,7 +874,7 @@ loadAdmin();
 loadOrders();
 loadAnalytics();
 
-setInterval(loadAdmin,3000);
+setInterval(loadAdmin,5000);
 setInterval(loadOrders,5000);
 setInterval(loadAnalytics,5000);
 
