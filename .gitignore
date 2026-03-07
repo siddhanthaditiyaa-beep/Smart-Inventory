@@ -16,3 +16,17 @@ uploads/
 # OS files
 .DS_Store
 Thumbs.db
+# YOLO model weights
+*.pt
+
+# training outputs
+runs/
+
+# datasets
+datasets/
+
+# python cache
+__pycache__/
+
+# env files
+.env

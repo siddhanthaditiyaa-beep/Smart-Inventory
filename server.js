@@ -4,11 +4,31 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const PDFDocument = require("pdfkit");
+const { Parser } = require("json2csv"); // NEW (CSV export)
+const mapSlotsToProducts = require("./slotProductMapper");
 
 const app = express();
 app.use(express.json());
 app.use(express.static("public"));
 app.use("/uploads", express.static("uploads"));
+
+function calculateDistance(lat1, lon1, lat2, lon2) {
+
+  const R = 6371; // Earth radius km
+
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+
+  const a =
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) *
+    Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+  return R * c;
+}
 
 /* =========================
    SESSION STORE
@@ -43,6 +63,26 @@ const Item = mongoose.model("Item", new mongoose.Schema({
   name: String,
   stock: Number,
   price: { type: Number, default: 0 }
+}));
+
+/* =========================
+   STORE BRANCHES
+========================= */
+
+const Store = mongoose.model("Store", new mongoose.Schema({
+  name: String,
+  latitude: Number,
+  longitude: Number,
+  inventory: {
+    chocolates: Number,
+    biscuits: Number,
+    chips: Number,
+    juice: Number,
+    "soft-drinks": Number,
+    "canned-food": Number,
+    rice: Number,
+    salt: Number
+  }
 }));
 
 const Order = mongoose.model("Order", new mongoose.Schema({
@@ -99,6 +139,47 @@ async function init() {
       { key: "salt", name: "Salt", stock: 10, price: 5 }
     ]);
   }
+
+  /* =========================
+   CREATE STORE BRANCHES
+========================= */
+if ((await Store.countDocuments()) === 0) {
+  await Store.insertMany([
+    {
+      name: "Andheri Branch",
+      latitude: 19.1197,
+      longitude: 72.8468,
+      inventory: {
+        chocolates: 10,
+        biscuits: 6,
+        chips: 8,
+        juice: 5
+      }
+    },
+    {
+      name: "Bandra Branch",
+      latitude: 19.0596,
+      longitude: 72.8295,
+      inventory: {
+        chocolates: 4,
+        biscuits: 9,
+        chips: 3,
+        juice: 7
+      }
+    },
+    {
+      name: "Juhu Branch",
+      latitude: 19.1075,
+      longitude: 72.8263,
+      inventory: {
+        chocolates: 12,
+        biscuits: 5,
+        chips: 6,
+        juice: 9
+      }
+    }
+  ]);
+}
 }
 
 /* =========================
@@ -139,7 +220,7 @@ app.post("/logout", (req, res) => {
 });
 
 /* =========================
-   🔍 MONITORING AGENT (EVERY 2 SECONDS)
+   🔍 MONITORING AGENT
 ========================= */
 setInterval(async () => {
   const items = await Item.find();
@@ -273,6 +354,29 @@ app.get("/admin/analytics", auth("admin"), async (_, res) => {
   });
 });
 
+/* =========================
+   📥 DOWNLOAD INVENTORY CSV
+========================= */
+app.get("/admin/download-csv", auth("admin"), async (_, res) => {
+  const items = await Item.find();
+
+  const data = items.map(i => ({
+    Item: i.name,
+    Stock: i.stock,
+    Price: i.price
+  }));
+
+  const parser = new Parser();
+  const csv = parser.parse(data);
+
+  res.header("Content-Type", "text/csv");
+  res.attachment("inventory.csv");
+  res.send(csv);
+});
+
+/* =========================
+   ADMIN ITEM MANAGEMENT
+========================= */
 app.post("/admin/update-stock", auth("admin"), async (req, res) => {
   await Item.updateOne(
     { key: req.body.key },
@@ -305,7 +409,7 @@ app.delete("/admin/delete-item/:key", auth("admin"), async (req, res) => {
 });
 
 /* =========================
-   RESET LOGS & STOCKS (FIXED)
+   RESET LOGS & STOCKS
 ========================= */
 app.post("/admin/reset-logs", auth("admin"), async (_, res) => {
   await Log.deleteMany({});
@@ -333,17 +437,6 @@ app.post("/admin/reset-logs", auth("admin"), async (_, res) => {
 });
 
 /* =========================
-   SERVER START
-========================= */
-mongoose
-  .connect(process.env.MONGODB_URI)
-  .then(async () => {
-    await init();
-    app.listen(process.env.PORT || 3000);
-    console.log("🚀 Server running");
-  });
-
-  /* =========================
    CUSTOMER ORDERS
 ========================= */
 app.get("/customer/orders", auth("customer"), async (req, res) => {
@@ -353,3 +446,116 @@ app.get("/customer/orders", auth("customer"), async (req, res) => {
 
   res.json(orders);
 });
+
+/* =========================
+   PROCESS SHELF IMAGE (AI)
+========================= */
+app.post("/process-shelf", auth("admin"), upload.single("image"), async (req, res) => {
+
+  try {
+
+    const imagePath = `/uploads/${req.file.filename}`;
+
+    // Send image to Python ML server
+    const mlResponse = await fetch("http://127.0.0.1:5001/process-shelf-image", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        imagePath
+      })
+    });
+
+    const mlData = await mlResponse.json();
+
+    const mapped = mapSlotsToProducts(
+      mlData.shelf_id,
+      mlData.occupied_slot_numbers,
+      mlData.empty_slot_numbers
+    );
+
+    // Reduce stock for missing products
+    for (const product of mapped.missing_products) {
+
+      await Item.updateOne(
+        { key: product },
+        { $inc: { stock: -1 } }
+      );
+
+      await Log.create({
+        type: "monitoring",
+        item: product,
+        stock: 0,
+        time: new Date().toLocaleString()
+      });
+
+    }
+
+    res.json({
+      message: "Shelf processed",
+      present: mapped.present_products,
+      missing: mapped.missing_products
+    });
+
+  } catch (err) {
+
+    console.error(err);
+    res.status(500).json({ error: "Shelf processing failed" });
+
+  }
+
+});
+
+/* =========================
+   FIND NEARBY STORES
+========================= */
+
+app.get("/nearby-stores/:key", auth("customer"), async (req, res) => {
+
+  const key = req.params.key;
+
+  const userLat = Number(req.query.lat);
+  const userLon = Number(req.query.lon);
+
+  const stores = await Store.find();
+
+  const available = [];
+
+  stores.forEach(store => {
+
+    const stock = store.inventory[key];
+
+    if (stock && stock > 0) {
+
+      const distance = calculateDistance(
+        userLat,
+        userLon,
+        store.latitude,
+        store.longitude
+      );
+
+      available.push({
+        store: store.name,
+        stock,
+        distance: distance.toFixed(2)
+      });
+
+    }
+
+  });
+
+  res.json(available);
+
+});
+
+/* =========================
+   SERVER START
+========================= */
+mongoose
+  .connect(process.env.MONGODB_URI)
+  .then(async () => {
+    await init();
+    app.listen(process.env.PORT || 3000);
+    console.log("🚀 Server running");
+  });

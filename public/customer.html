@@ -1,190 +1,324 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Shop | Smart Inventory</title>
-  <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<title>Shop | Smart Inventory</title>
+<link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
 <div class="container">
-  <h1>🛒 Shop</h1>
+<h1>🛒 Shop</h1>
 
-  <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px;">
-    <button onclick="logout()" class="login-btn" style="width:120px">
-      Logout
-    </button>
-  </div>
+<div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px;">
+<button onclick="logout()" class="login-btn" style="width:120px">
+Logout
+</button>
+</div>
 
-  <!-- ITEMS -->
-  <div id="items" class="grid"></div>
+<!-- ITEMS -->
+<div id="items" class="grid"></div>
 
-  <!-- CART -->
-  <h2 style="margin-top:30px;">🧺 Your Cart</h2>
-  <ul id="cart" style="padding-left:0;"></ul>
+<!-- CART -->
+<h2 style="margin-top:30px;">🧺 Your Cart</h2>
+<ul id="cart" style="padding-left:0;"></ul>
 
-  <!-- Desktop checkout -->
-  <button id="desktopCheckout" onclick="checkout()" style="margin-top:10px;">
-    Checkout
-  </button>
+<!-- Desktop checkout -->
+<button id="desktopCheckout" onclick="checkout()" style="margin-top:10px;">
+Checkout
+</button>
 
-  <!-- ORDER HISTORY -->
-  <h2 style="margin-top:40px;">📦 My Orders</h2>
-  <div id="orders"></div>
+<!-- ORDER HISTORY -->
+<h2 style="margin-top:40px;">📦 My Orders</h2>
+<div id="orders"></div>
 </div>
 
 <script>
+
 const token = localStorage.getItem("token");
 const role = localStorage.getItem("role");
 
 if (!token || role !== "customer") {
-  window.location.href = "login.html";
+window.location.href = "login.html";
 }
 
 let cart = {};
 let prices = {};
 
 /* ================= LOAD ITEMS ================= */
+
 async function loadItems() {
-  const res = await fetch("/shop-items", {
-    headers: { Authorization: token }
-  });
 
-  const data = await res.json();
-  const container = document.getElementById("items");
-  container.innerHTML = "";
-  prices = {};
+const res = await fetch("/shop-items", {
+headers: { Authorization: token }
+});
 
-  Object.keys(data).forEach(key => {
-    const item = data[key];
-    prices[key] = item.price;
+const data = await res.json();
+const container = document.getElementById("items");
 
-    container.innerHTML += `
-      <div class="item-card">
-        <h3>${item.name}</h3>
-        <p style="font-weight:bold;">₹ ${item.price}</p>
+container.innerHTML = "";
+prices = {};
 
-        ${item.warning ? `<span class="badge">Only ${item.warning} left</span>` : ""}
+Object.keys(data).forEach(key => {
 
-        <button ${item.canBuy ? "" : "disabled"} onclick="add('${key}')">
-          ${item.canBuy ? "Add to Cart" : "Out of Stock"}
-        </button>
-      </div>
-    `;
-  });
+const item = data[key];
+prices[key] = item.price;
+
+container.innerHTML += `
+
+<div class="item-card">
+
+<h3>${item.name}</h3>
+
+<p style="font-weight:bold;">₹ ${item.price}</p>
+
+${item.warning ? `<span class="badge">Only ${item.warning} left</span>` : ""}
+
+<button ${item.canBuy ? "" : "disabled"} onclick="add('${key}')">
+${item.canBuy ? "Add to Cart" : "Out of Stock"}
+</button>
+
+${!item.canBuy ? `
+<div style="margin-top:8px;">
+<button onclick="checkNearby('${key}')">
+🔎 Find Nearby Store
+</button>
+
+<div id="nearby-${key}" style="
+margin-top:8px;
+font-size:14px;
+color:#444;
+"></div>
+
+</div>
+` : ""}
+</div>
+
+`;
+
+});
+
 }
 
 /* ================= CART ================= */
+
 function add(key) {
-  cart[key] = (cart[key] || 0) + 1;
-  renderCart();
+
+cart[key] = (cart[key] || 0) + 1;
+renderCart();
+
 }
 
 function remove(key) {
-  cart[key]--;
-  if (cart[key] <= 0) delete cart[key];
-  renderCart();
+
+cart[key]--;
+
+if (cart[key] <= 0) delete cart[key];
+
+renderCart();
+
 }
 
 function renderCart() {
-  const ul = document.getElementById("cart");
-  const cartInfo = document.getElementById("cartInfo");
 
-  ul.innerHTML = "";
-  let totalItems = 0;
-  let totalPrice = 0;
+const ul = document.getElementById("cart");
+const cartInfo = document.getElementById("cartInfo");
 
-  Object.keys(cart).forEach(key => {
-    totalItems += cart[key];
-    totalPrice += cart[key] * prices[key];
+ul.innerHTML = "";
 
-    ul.innerHTML += `
-      <li style="
-        list-style:none;
-        display:flex;
-        justify-content:space-between;
-        align-items:center;
-        padding:10px;
-        margin-bottom:8px;
-        background:#f8f9ff;
-        border-radius:8px;
-      ">
-        <span><b>${key}</b> × ${cart[key]}</span>
-        <button onclick="remove('${key}')" style="padding:6px 10px;">➖</button>
-      </li>
-    `;
-  });
+let totalItems = 0;
+let totalPrice = 0;
 
-  if (cartInfo) {
-    cartInfo.innerText = `🧺 ${totalItems} items | ₹${totalPrice}`;
-  }
+Object.keys(cart).forEach(key => {
+
+totalItems += cart[key];
+totalPrice += cart[key] * prices[key];
+
+ul.innerHTML += `
+
+<li style="
+list-style:none;
+display:flex;
+justify-content:space-between;
+align-items:center;
+padding:10px;
+margin-bottom:8px;
+background:#f8f9ff;
+border-radius:8px;
+">
+
+<span><b>${key}</b> × ${cart[key]}</span>
+
+<button onclick="remove('${key}')" style="padding:6px 10px;">➖</button>
+
+</li>
+
+`;
+
+});
+
+if (cartInfo) {
+
+cartInfo.innerText = `🧺 ${totalItems} items | ₹${totalPrice}`;
+
+}
+
 }
 
 /* ================= CHECKOUT ================= */
+
 function checkout() {
-  if (Object.keys(cart).length === 0) {
-    alert("Cart is empty");
-    return;
-  }
 
-  localStorage.setItem("pendingCart", JSON.stringify(cart));
-  localStorage.setItem("priceMap", JSON.stringify(prices)); // ✅ ADD THIS
+if (Object.keys(cart).length === 0) {
 
-  window.location.href = "payment.html";
+alert("Cart is empty");
+return;
+
 }
 
+localStorage.setItem("pendingCart", JSON.stringify(cart));
+localStorage.setItem("priceMap", JSON.stringify(prices));
+
+window.location.href = "payment.html";
+
+}
+
+/* ================= GPS LOCATION ================= */
+
+function getUserLocation(callback){
+
+if(!navigator.geolocation){
+
+alert("Geolocation not supported");
+
+return;
+
+}
+
+navigator.geolocation.getCurrentPosition(position=>{
+
+const lat = position.coords.latitude;
+const lon = position.coords.longitude;
+
+callback(lat,lon);
+
+});
+
+}
+
+/* ================= NEARBY STORE FEATURE ================= */
+
+async function checkNearby(itemKey){
+
+getUserLocation(async (lat,lon)=>{
+
+const res = await fetch(`/nearby-stores/${itemKey}?lat=${lat}&lon=${lon}`,{
+headers:{ Authorization: token }
+});
+
+const stores = await res.json();
+
+const container = document.getElementById(`nearby-${itemKey}`);
+
+if(!stores.length){
+
+container.innerHTML = "<i>No nearby stores have this item.</i>";
+return;
+
+}
+
+let html = "<b>Available nearby:</b><br>";
+
+stores.forEach(s=>{
+
+html += `📍 ${s.store} → ${s.distance} km (Stock: ${s.stock})<br>`;
+
+});
+
+container.innerHTML = html;
+
+});
+
+}
 
 /* ================= ORDER HISTORY ================= */
-async function loadOrders() {
-  const res = await fetch("/customer/orders", {
-    headers: { Authorization: token }
-  });
 
-  const orders = await res.json();
-  const container = document.getElementById("orders");
-  container.innerHTML = "";
+async function loadOrders(){
 
-  if (!orders.length) {
-    container.innerHTML = "<p>No past orders</p>";
-    return;
-  }
+const res = await fetch("/customer/orders",{
+headers:{ Authorization: token }
+});
 
-  orders.forEach(o => {
-    container.innerHTML += `
-      <div style="
-        background:#fafafa;
-        border-radius:12px;
-        padding:14px;
-        margin-bottom:14px;
-      ">
-        <strong>${o.time}</strong>
-        <ul style="padding-left:16px;">
-          ${o.items.map(i => `<li>${i.name} × ${i.qty} = ₹${i.subtotal}</li>`).join("")}
-        </ul>
-        <strong>Total: ₹${o.totalAmount}</strong>
-      </div>
-    `;
-  });
+const orders = await res.json();
+
+const container = document.getElementById("orders");
+
+container.innerHTML = "";
+
+if(!orders.length){
+
+container.innerHTML = "<p>No past orders</p>";
+return;
+
+}
+
+orders.forEach(o=>{
+
+container.innerHTML += `
+
+<div style="
+background:#fafafa;
+border-radius:12px;
+padding:14px;
+margin-bottom:14px;
+">
+
+<strong>${o.time}</strong>
+
+<ul style="padding-left:16px;">
+
+${o.items.map(i=>`<li>${i.name} × ${i.qty} = ₹${i.subtotal}</li>`).join("")}
+
+</ul>
+
+<strong>Total: ₹${o.totalAmount}</strong>
+
+</div>
+
+`;
+
+});
+
 }
 
 /* ================= LOGOUT ================= */
-function logout() {
-  localStorage.clear();
-  window.location.href = "login.html";
+
+function logout(){
+
+localStorage.clear();
+window.location.href = "login.html";
+
 }
 
 /* ================= INIT ================= */
+
 loadItems();
 loadOrders();
-setInterval(loadItems, 3000);
-setInterval(loadOrders, 5000);
+
+setInterval(loadItems,3000);
+setInterval(loadOrders,5000);
+
 </script>
 
 <!-- 📱 Mobile Cart Bar -->
+
 <div id="mobileCartBar">
-  <span id="cartInfo">🧺 0 items | ₹0</span>
-  <button onclick="checkout()">Checkout</button>
+
+<span id="cartInfo">🧺 0 items | ₹0</span>
+
+<button onclick="checkout()">Checkout</button>
+
 </div>
 
 </body>

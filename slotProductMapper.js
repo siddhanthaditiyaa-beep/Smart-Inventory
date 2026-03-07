@@ -1,3 +1,5 @@
+const shelfPlanogram = require("./shelfPlanogram");
+
 /**
  * STEP 10.2 — Slot → Product Mapper
  * --------------------------------

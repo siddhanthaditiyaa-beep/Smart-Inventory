@@ -13,7 +13,9 @@
   "type": "commonjs",
   "dependencies": {
     "dotenv": "^17.2.3",
+    "exceljs": "^4.4.0",
     "express": "^5.2.1",
+    "json2csv": "^6.0.0-alpha.2",
     "mongoose": "^9.1.5",
     "multer": "^2.0.2",
     "node-fetch": "^2.7.0",

@@ -5,6 +5,9 @@ from PIL import Image
 import numpy as np
 import os
 
+# NEW IMPORT FOR YOLO
+from ultralytics import YOLO
+
 app = Flask(__name__)
 
 # -------------------------------
@@ -14,14 +17,21 @@ TOTAL_SLOTS = 10
 EMPTY_THRESHOLD = 220
 
 # -------------------------------
+# LOAD YOLO MODEL (NEW)
+# -------------------------------
+print("🧠 Loading YOLO model...")
+model = YOLO("yolov8n.pt")
+
+# -------------------------------
 # HEALTH CHECK
 # -------------------------------
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok"})
 
+
 # -------------------------------
-# PROCESS SHELF IMAGE
+# PROCESS SHELF IMAGE (EXISTING)
 # -------------------------------
 @app.route("/process-shelf-image", methods=["POST"])
 def process_shelf_image():
@@ -31,7 +41,6 @@ def process_shelf_image():
     if not image_path:
         return jsonify({"error": "imagePath required"}), 400
 
-    # Node sends paths like /uploads/xyz.jpg
     image_path = image_path.lstrip("/")
 
     if not os.path.exists(image_path):
@@ -68,8 +77,42 @@ def process_shelf_image():
 
     return jsonify(response)
 
+
 # -------------------------------
-# START SERVER (CRITICAL)
+# YOLO PRODUCT DETECTION (NEW)
+# -------------------------------
+@app.route("/detect-products", methods=["POST"])
+def detect_products():
+
+    data = request.json
+    image_path = data.get("imagePath")
+
+    if not image_path:
+        return jsonify({"error": "imagePath required"}), 400
+
+    image_path = image_path.lstrip("/")
+
+    if not os.path.exists(image_path):
+        return jsonify({"error": "Image not found"}), 404
+
+    print(f"🔍 Running YOLO on {image_path}")
+
+    results = model(image_path)
+
+    detected_products = []
+
+    for r in results:
+        for cls in r.boxes.cls:
+            label = model.names[int(cls)]
+            detected_products.append(label)
+
+    return jsonify({
+        "products": detected_products
+    })
+
+
+# -------------------------------
+# START SERVER
 # -------------------------------
 if __name__ == "__main__":
     print("🚀 Starting Flask ML service on port 5001")
