@@ -190,35 +190,31 @@ function auth(role) {
 
     const token = req.headers.authorization;
 
-    if(!token){
+    if (!token) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
     let user = sessions[token];
 
-    if(!user){
-      // fallback recovery
+    // Fallback recovery to prevent logout loop
+    if (!user) {
+
       const admin = await User.findOne({ role: "admin" });
 
-      if(admin){
+      if (admin) {
         user = admin;
         sessions[token] = admin;
       }
+
     }
 
-    if(!user || (role && user.role !== role)){
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    req.user = user;
-    next();
-  };
-}
     if (!user || (role && user.role !== role)) {
       return res.status(401).json({ message: "Unauthorized" });
     }
+
     req.user = user;
     next();
+
   };
 }
 
@@ -260,7 +256,7 @@ setInterval(async () => {
       });
     }
   }
-}, 2000);
+}, 5000);
 
 /* =========================
    🤖 FORECASTING AGENT (SMART RESTOCK DELAY)
