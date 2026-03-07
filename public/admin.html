@@ -644,14 +644,29 @@ price:Number(itemPrice.value)
 })
 });
 
+/* Clear inputs */
+
+itemName.value="";
+itemStock.value="";
+itemPrice.value="";
+
+/* Reload inventory instantly */
+
+loadAdmin();
+
 }
 
 async function deleteItem(key){
+
+const ok = confirm("Delete this item from inventory?");
+if(!ok) return;
 
 await fetch(`/admin/delete-item/${key}`,{
 method:"DELETE",
 headers:{Authorization:token}
 });
+
+loadAdmin();
 
 }
 
