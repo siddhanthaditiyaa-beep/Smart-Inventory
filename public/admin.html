@@ -52,6 +52,21 @@ to{opacity:0;transform:translateX(120%);}
 
 <div id="toastContainer"></div>
 
+<!-- 🧠 AI RETAIL INTELLIGENCE BANNER -->
+
+<div id="aiBanner" style="
+background:#111827;
+color:#fff;
+padding:12px;
+margin:10px;
+border-radius:8px;
+font-weight:bold;
+text-align:center;
+font-size:14px;
+">
+🧠 AI Retail Intelligence Center loading...
+</div>
+
 <div class="admin-container">
 
 <div class="card">
@@ -288,6 +303,28 @@ feed.innerHTML += `<li>🤖 AI restocked ${l.item}</li>`;
 
 function calculateInventoryValue(items){
 
+/* AI INTELLIGENCE BANNER */
+
+function updateAIBanner(data){
+
+const items = data.inventory || [];
+const orders = data.orders || [];
+const forecasting = data.forecasting || [];
+
+let lowStock = items.filter(i => i.stock <= 3).length;
+let aiRestocks = forecasting.length;
+let totalItems = items.length;
+
+let health = "GOOD";
+
+if(lowStock > 3) health = "CRITICAL";
+else if(lowStock > 1) health = "WARNING";
+
+document.getElementById("aiBanner").innerText =
+`🧠 AI Retail Intelligence Center | Store Health: ${health} | Low Stock Items: ${lowStock} | AI Restocks: ${aiRestocks} | Products Tracked: ${totalItems}`;
+
+}
+
 let total=0;
 
 items.forEach(i=>{
@@ -433,6 +470,7 @@ calculateInventoryValue(data.inventory||[]);
 renderLogs(data.monitoring||[],"monitoringLogs");
 renderLogs(data.forecasting||[],"forecastingLogs");
 renderActivityFeed(data);
+updateAIBanner(data);
 
 (data.forecasting||[]).forEach(log=>{
 if(!forecastToastShown[log.item]){
