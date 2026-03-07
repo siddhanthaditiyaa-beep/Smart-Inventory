@@ -126,12 +126,12 @@ margin-top:8px;
 <!-- 🧠 SYSTEM STATUS PANEL -->
 
 <div class="card">
-<h2>🧠 System Status</h2>
+<h2>🧠 System Health Monitor</h2>
 <ul id="systemStatus">
-<li>🟢 Database Connected</li>
-<li>🟢 Monitoring Agent Running</li>
-<li>🟢 Forecasting AI Active</li>
-<li>🟢 Shelf AI Ready</li>
+<li id="dbStatus">🟢 Database Connected</li>
+<li id="monitorStatus">🟢 Monitoring Agent Running</li>
+<li id="forecastStatus">🟢 Forecasting AI Active</li>
+<li id="orderStatus">🟢 Order Processing Active</li>
 <li id="lastScan">🟡 Last Shelf Scan: Not yet</li>
 </ul>
 </div>
@@ -541,6 +541,29 @@ data:{labels:[],datasets:[{data:[],borderColor:"#3ec6c6",tension:0.3}]}
 
 }
 
+function updateSystemHealth(data){
+
+const items = data.inventory || [];
+
+const lowStock = items.filter(i => i.stock <= 3).length;
+
+if(lowStock > 5){
+document.getElementById("monitorStatus").innerText =
+"🟡 Monitoring Agent Detecting Many Low Stock Items";
+}
+
+if(lowStock > 8){
+document.getElementById("forecastStatus").innerText =
+"🟡 Forecasting AI Preparing Multiple Restocks";
+}
+
+if(items.length === 0){
+document.getElementById("dbStatus").innerText =
+"🔴 Database Connection Issue";
+}
+
+}
+
 /* LOAD ADMIN */
 
 async function loadAdmin(){
@@ -557,6 +580,7 @@ renderLogs(data.monitoring||[],"monitoringLogs");
 renderLogs(data.forecasting||[],"forecastingLogs");
 renderActivityFeed(data);
 updateAIBanner(data);
+updateSystemHealth(data);
 
 (data.forecasting||[]).forEach(log=>{
 if(!forecastToastShown[log.item]){
