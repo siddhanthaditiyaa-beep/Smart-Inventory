@@ -148,7 +148,7 @@ background:#f8f9ff;
 border-radius:8px;
 ">
 
-<span><b>${key}</b> × ${cart[key]}</span>
+<span><b>${key.replace("-", " ")}</b> × ${cart[key]}</span>
 
 <button onclick="remove('${key}')" style="padding:6px 10px;">➖</button>
 
