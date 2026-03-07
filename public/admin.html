@@ -156,6 +156,13 @@ margin-top:8px;
 </div>
 
 <div class="card">
+<h2>🧠 AI Insights</h2>
+<ul id="aiInsights">
+<li>AI analysing store data...</li>
+</ul>
+</div>
+
+<div class="card">
 
 <h2>📦 Inventory</h2>
 
@@ -315,6 +322,57 @@ box.innerHTML+=`<li style="color:orange;">⚠️ ${i.name} running low (${i.stoc
 
 if(box.innerHTML===""){
 box.innerHTML="<li>All products healthy</li>";
+}
+
+}
+
+function generateAIInsights(data){
+
+const box = document.getElementById("aiInsights");
+
+const items = data.inventory || [];
+const logs = data.monitoring || [];
+
+box.innerHTML = "";
+
+items.forEach(i=>{
+
+if(i.stock === 0){
+
+box.innerHTML += `
+<li>⚠ ${i.name} demand spike detected — restock recommended</li>
+`;
+
+}
+
+else if(i.stock <= 3){
+
+box.innerHTML += `
+<li>📉 ${i.name} running low — sales demand increasing</li>
+`;
+
+}
+
+});
+
+if(items.length > 5){
+
+box.innerHTML += `
+<li>📊 Inventory diversified across ${items.length} products</li>
+`;
+
+}
+
+if(logs.length > 3){
+
+box.innerHTML += `
+<li>🤖 Monitoring agent detected multiple stock alerts</li>
+`;
+
+}
+
+if(box.innerHTML === ""){
+box.innerHTML = "<li>✅ Inventory system operating normally</li>";
 }
 
 }
@@ -581,6 +639,7 @@ renderLogs(data.forecasting||[],"forecastingLogs");
 renderActivityFeed(data);
 updateAIBanner(data);
 updateSystemHealth(data);
+generateAIInsights(data);
 
 (data.forecasting||[]).forEach(log=>{
 if(!forecastToastShown[log.item]){
