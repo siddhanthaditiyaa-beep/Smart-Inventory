@@ -840,23 +840,41 @@ location.href="login.html";
 
 document.addEventListener("keydown", function(e){
 
-if(e.ctrlKey && e.shiftKey && e.key === "A"){
+if(e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "a"){
 
 showToast("🚨 AI Demo Mode Activated");
 
 const alerts = document.getElementById("alerts");
-
-alerts.innerHTML += `
+alerts.innerHTML = `
 <li style="color:red;">⚠ Chips demand spike detected</li>
 <li style="color:red;">⚠ Biscuits shelf empty</li>
+<li style="color:orange;">⚠ Juice running low</li>
 `;
+
+document.getElementById("alertCounter").innerText = "🔔 3 Alerts";
 
 const feed = document.getElementById("activityFeed");
 
-feed.innerHTML += `
-<li>🤖 Forecasting AI triggered emergency restock</li>
+feed.innerHTML = `
 <li>📡 Monitoring agent detected abnormal demand</li>
+<li>🤖 Forecasting AI preparing restock</li>
+<li>🤖 AI restocked Chips</li>
+<li>📊 Inventory demand pattern changed</li>
 `;
+
+const insights = document.getElementById("aiInsights");
+
+insights.innerHTML = `
+<li>⚠ Chips demand spike detected</li>
+<li>📈 Snack products trending</li>
+<li>🤖 AI triggered predictive restock</li>
+`;
+
+document.getElementById("monitorStatus").innerText =
+"🟡 Monitoring Agent Detecting Demand Spike";
+
+document.getElementById("forecastStatus").innerText =
+"🟡 Forecasting AI Triggered Emergency Restock";
 
 }
 
