@@ -305,7 +305,7 @@ setInterval(async () => {
 
         delete pendingRestocks[i.key];
 
-      }, 5000); // 5 second delay
+      }, 15000); // 15 second delay
 
     }
 
