@@ -816,6 +816,32 @@ location.href="login.html";
 
 }
 
+/* AI DEMO MODE */
+
+document.addEventListener("keydown", function(e){
+
+if(e.ctrlKey && e.shiftKey && e.key === "A"){
+
+showToast("🚨 AI Demo Mode Activated");
+
+const alerts = document.getElementById("alerts");
+
+alerts.innerHTML += `
+<li style="color:red;">⚠ Chips demand spike detected</li>
+<li style="color:red;">⚠ Biscuits shelf empty</li>
+`;
+
+const feed = document.getElementById("activityFeed");
+
+feed.innerHTML += `
+<li>🤖 Forecasting AI triggered emergency restock</li>
+<li>📡 Monitoring agent detected abnormal demand</li>
+`;
+
+}
+
+});
+
 /* START */
 
 initCharts();
