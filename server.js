@@ -601,10 +601,22 @@ app.get("/nearby-stores/:key", auth("customer"), async (req, res) => {
 /* =========================
    SERVER START
 ========================= */
-mongoose
-  .connect(process.env.MONGODB_URI)
-  .then(async () => {
-    await init();
-    app.listen(process.env.PORT || 3000);
+
+const mongoURI =
+  process.env.MONGO_URI || "mongodb://127.0.0.1:27017/smart-inventory";
+
+mongoose.connect(mongoURI)
+.then(async () => {
+
+  console.log("✅ MongoDB Connected");
+
+  await init();
+
+  app.listen(process.env.PORT || 3000, () => {
     console.log("🚀 Server running");
   });
+
+})
+.catch(err => {
+  console.log("MongoDB Error:", err);
+});
