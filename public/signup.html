@@ -41,17 +41,18 @@
 </div>
 
 <script>
+
 function isValidEmail(e) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 }
 
-/* 👁️ TOGGLE PASSWORD */
 function toggleSignupPassword() {
   const p = document.getElementById("password");
   p.type = p.type === "password" ? "text" : "password";
 }
 
 async function signup() {
+
   const fname = document.getElementById("fname").value.trim();
   const lname = document.getElementById("lname").value.trim();
   const email = document.getElementById("email").value.trim();
@@ -79,38 +80,49 @@ async function signup() {
   loader.style.display = "block";
   msg.innerText = "";
 
-  const res = await fetch("/register", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ fname, lname, email, password })
-  });
+  try {
 
-  const data = await res.json();
+    const res = await fetch("/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fname, lname, email, password })
+    });
 
-  loader.style.display = "none";
-  btn.disabled = false;
+    const data = await res.json();
 
-  if (!res.ok) {
-    msg.innerText = data.message || "Signup failed";
+    loader.style.display = "none";
+    btn.disabled = false;
+
+    if (!res.ok) {
+      msg.innerText = data.message || "Signup failed";
+      msg.style.color = "red";
+      return;
+    }
+
+    msg.innerText = "✅ Account created!";
+    msg.style.color = "green";
+
+    setTimeout(() => {
+      window.location.href = "login.html";
+    }, 1500);
+
+  } catch (err) {
+
+    loader.style.display = "none";
+    btn.disabled = false;
+    msg.innerText = "Server error. Please try again.";
     msg.style.color = "red";
-    return;
+
   }
 
-  msg.innerText = "✅ Account created!";
-  msg.style.color = "green";
-
-  setTimeout(() => {
-    window.location.href = "login.html";
-  }, 1500);
 }
 
-/* ⌨️ ENTER KEY SUPPORT */
 document.addEventListener("keydown", function (e) {
   if (e.key === "Enter") {
     signup();
   }
 });
-</script>
 
+</script>
 </body>
 </html>
