@@ -79,29 +79,62 @@ async function signup() {
   loader.style.display = "block";
   msg.innerText = "";
 
-  const res = await fetch("/register", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ fname, lname, email, password })
-  });
+ async function signup() {
 
-  const data = await res.json();
+  const fname = document.getElementById("fname").value.trim();
+  const lname = document.getElementById("lname").value.trim();
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value.trim();
 
-  loader.style.display = "none";
-  btn.disabled = false;
+  const msg = document.getElementById("msg");
+  const btn = document.getElementById("signupBtn");
+  const loader = document.getElementById("loader");
 
-  if (!res.ok) {
-    msg.innerText = data.message || "Signup failed";
+  if (!fname || !lname || !email || !password) {
+    msg.innerText = "⚠️ All fields required";
     msg.style.color = "red";
     return;
   }
 
-  msg.innerText = "✅ Account created!";
-  msg.style.color = "green";
+  btn.disabled = true;
+  loader.style.display = "block";
+  msg.innerText = "";
 
-  setTimeout(() => {
-    window.location.href = "login.html";
-  }, 1500);
+  try {
+
+    const res = await fetch("/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fname, lname, email, password })
+    });
+
+    const data = await res.json();
+
+    loader.style.display = "none";
+    btn.disabled = false;
+
+    if (!res.ok) {
+      msg.innerText = data.message || "Signup failed";
+      msg.style.color = "red";
+      return;
+    }
+
+    msg.innerText = "✅ Account created!";
+    msg.style.color = "green";
+
+    setTimeout(() => {
+      window.location.href = "login.html";
+    }, 1500);
+
+  } catch (err) {
+
+    loader.style.display = "none";
+    btn.disabled = false;
+    msg.innerText = "Server error. Please try again.";
+    msg.style.color = "red";
+
+  }
+
 }
 
 /* ⌨️ ENTER KEY SUPPORT */
