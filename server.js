@@ -219,45 +219,9 @@ function auth(role) {
 }
 
 /* =========================
-   LOGIN / LOGOUT
+   LOGIN
 ========================= */
 app.post("/login", async (req, res) => {
-
-/* =========================
-   REGISTER USER
-========================= */
-app.post("/register", async (req, res) => {
-
-  try {
-
-    const { fname, lname, email, password } = req.body;
-
-    // Check if user already exists
-    const existingUser = await User.findOne({ email });
-
-    if (existingUser) {
-      return res.status(400).json({ message: "User already exists" });
-    }
-
-    // Create new user
-    await User.create({
-      role: "customer",
-      fname,
-      lname,
-      email,
-      password
-    });
-
-    res.json({ message: "Account created successfully" });
-
-  } catch (error) {
-
-    console.error(error);
-    res.status(500).json({ message: "Registration failed" });
-
-  }
-
-});
 
   const user = await User.findOne({
     email: req.body.username,
@@ -270,8 +234,65 @@ app.post("/register", async (req, res) => {
   sessions[token] = user;
 
   res.json({ token, role: user.role });
+
 });
 
+/* =========================
+   LOGIN
+========================= */
+app.post("/login", async (req, res) => {
+
+  const user = await User.findOne({
+    email: req.body.username,
+    password: req.body.password
+  });
+
+  if (!user) return res.status(401).json({ message: "Invalid credentials" });
+
+  const token = Date.now().toString();
+  sessions[token] = user;
+
+  res.json({ token, role: user.role });
+
+});
+
+/* =========================
+   REGISTER
+========================= */
+app.post("/register", async (req, res) => {
+
+  try {
+
+    const { fname, lname, email, password } = req.body;
+
+    const existingUser = await User.findOne({ email });
+
+    if (existingUser) {
+      return res.status(400).json({ message: "User already exists" });
+    }
+
+    await User.create({
+      role: "customer",
+      fname,
+      lname,
+      email,
+      password
+    });
+
+    res.json({ message: "Account created successfully" });
+
+  } catch (err) {
+
+    console.error(err);
+    res.status(500).json({ message: "Registration failed" });
+
+  }
+
+});
+
+/* =========================
+   LOGOUT
+========================= */
 app.post("/logout", (req, res) => {
   delete sessions[req.body.token];
   res.json({ message: "Logged out" });
